@@ -87,6 +87,17 @@ const PHASE_CONFIG = {
   },
 };
 
+function playingOn(event = currentEvent) {
+  return event?.game === 'frlg' ? 'FireRed or LeafGreen' : 'Emerald';
+}
+
+function openMysteryGift(event = currentEvent) {
+  if (event?.game === 'frlg') {
+    return 'On FireRed or LeafGreen, from the title screen open Mystery Gift → Wireless Communication.';
+  }
+  return 'Stay on the Emerald main menu, then open Mystery Gift → Wireless Communication.';
+}
+
 function log(message) {
   const now = new Date();
   const ms = String(now.getMilliseconds()).padStart(3, '0');
@@ -161,8 +172,10 @@ async function startSession() {
     return;
   }
   busy = true;
+  const consoleName = playingOn();
   applyPhase('session', {
-    status: 'Waiting for Emerald to take the Mystery Gift…',
+    status: `Waiting for ${consoleName} to take the Mystery Gift…`,
+    instruction: `On ${consoleName}, search for the wireless distribution and accept it. Keep this page open.`,
   });
   hideResult();
   refreshButtons();
@@ -170,6 +183,7 @@ async function startSession() {
     await runSession({
       identity: identityFromEvent(currentEvent),
       payloadBytes,
+      readyMessage: `Armed — open Mystery Gift → Wireless on ${consoleName} now (adapter must already be connected)`,
       onStatus: (message) => {
         log(message);
         if (phase !== 'session') return;
@@ -243,6 +257,11 @@ eventSelect.addEventListener('change', () => {
   const preset = applyEventSelection(eventSelect.value);
   if (!preset) return;
   log(`Selected ${preset.label}`);
+  if (!busy && phase === 'idle') {
+    instructionText.textContent = preset.game === 'frlg'
+      ? 'Connect, then on FireRed or LeafGreen open Mystery Gift → Wireless Communication from the title screen.'
+      : PHASE_CONFIG.idle.instruction;
+  }
   if (isConnected() && !busy) queueMicrotask(() => startSession());
 });
 
@@ -262,10 +281,12 @@ connectBtn.addEventListener('click', async () => {
     });
     await setFirmwareWireLog(true);
     hideResult();
+    const where = openMysteryGift();
     applyPhase('connected', {
-      status: 'Armed. Stay on the Emerald main menu, then open Mystery Gift → Wireless.',
+      status: `Armed. ${where}`,
+      instruction: where,
     });
-    log('Adapter ready — stay on the main menu, then Mystery Gift → Wireless');
+    log(`Adapter ready — ${where}`);
   } catch (err) {
     const msg = err.message ?? String(err);
     applyPhase('error', { status: msg });

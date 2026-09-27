@@ -62,7 +62,7 @@ zr/M0/7Bw8DOAM3t5+jZ4a3/ydy4AMO04QDn4+bm7bgA/QGtANPj6eYAvLvBtOf+xb/TAMPOv8fNAMrJ
   },
   {
     id: 'frlg-wish-egg-chansey',
-    label: 'Wish Egg — Chansey (FireRed/LeafGreen)',
+    label: 'Wish Egg Chansey (FireRed/LeafGreen)',
     blurb: 'Wish Egg containing Chansey. Talk to the delivery person on Pokémon Center 2F.',
     source: 'JPAJ - Pokémon Egg (Chansey).gba',
     flagId: 1005,
@@ -82,7 +82,7 @@ ycUbx8nIAL2/yM6/zADr2f7c1erZANUA293a6ACuANUAysnFG8fJyAC/wcGr+8rg2dXn2QDm1d3n2QDd
   },
   {
     id: 'frlg-wish-egg-drowzee',
-    label: 'Wish Egg — Drowzee (FireRed/LeafGreen)',
+    label: 'Wish Egg Drowzee (FireRed/LeafGreen)',
     blurb: 'Wish Egg containing Drowzee. Talk to the delivery person on Pokémon Center 2F.',
     source: 'JPAJ - Pokémon Egg (Drowzee).gba',
     flagId: 1005,
@@ -102,7 +102,7 @@ ycUbx8nIAL2/yM6/zADr2f7c1erZANUA293a6ACuANUAysnFG8fJyAC/wcGr+8rg2dXn2QDm1d3n2QDd
   },
   {
     id: 'frlg-wish-egg-exeggcute',
-    label: 'Wish Egg — Exeggcute (FireRed/LeafGreen)',
+    label: 'Wish Egg Exeggcute (FireRed/LeafGreen)',
     blurb: 'Wish Egg containing Exeggcute. Talk to the delivery person on Pokémon Center 2F.',
     source: 'JPAJ - Pokémon Egg (Exeggcute).gba',
     flagId: 1005,
@@ -122,7 +122,7 @@ ycUbx8nIAL2/yM6/zADr2f7c1erZANUA293a6ACuANUAysnFG8fJyAC/wcGr+8rg2dXn2QDm1d3n2QDd
   },
   {
     id: 'frlg-wish-egg-farfetchd',
-    label: "Wish Egg — Farfetch'd (FireRed/LeafGreen)",
+    label: "Wish Egg Farfetch'd (FireRed/LeafGreen)",
     blurb: "Wish Egg containing Farfetch'd. Talk to the delivery person on Pokémon Center 2F.",
     source: "JPAJ - Pokémon Egg (Farfetch'd).gba",
     flagId: 1005,
@@ -142,7 +142,7 @@ ycUbx8nIAL2/yM6/zADr2f7c1erZANUA293a6ACuANUAysnFG8fJyAC/wcGr+8rg2dXn2QDm1d3n2QDd
   },
   {
     id: 'frlg-wish-egg-kangaskhan',
-    label: 'Wish Egg — Kangaskhan (FireRed/LeafGreen)',
+    label: 'Wish Egg Kangaskhan (FireRed/LeafGreen)',
     blurb: 'Wish Egg containing Kangaskhan. Talk to the delivery person on Pokémon Center 2F.',
     source: 'JPAJ - Pokémon Egg (Kangaskhan).gba',
     flagId: 1005,
@@ -162,7 +162,7 @@ ycUbx8nIAL2/yM6/zADr2f7c1erZANUA293a6ACuANUAysnFG8fJyAC/wcGr+8rg2dXn2QDm1d3n2QDd
   },
   {
     id: 'frlg-wish-egg-lickitung',
-    label: 'Wish Egg — Lickitung (FireRed/LeafGreen)',
+    label: 'Wish Egg Lickitung (FireRed/LeafGreen)',
     blurb: 'Wish Egg containing Lickitung. Talk to the delivery person on Pokémon Center 2F.',
     source: 'JPAJ - Pokémon Egg (Lickitung).gba',
     flagId: 1005,

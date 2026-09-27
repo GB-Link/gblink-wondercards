@@ -454,6 +454,7 @@ export async function runSession({
   payloadBytes,
   onStatus,
   timeoutMs = 180_000,
+  readyMessage = 'Armed — open Mystery Gift → Wireless Communication now (adapter must already be connected)',
 } = {}) {
   const conn = getActiveConnection();
   if (!conn) throw new Error('GB-Link not connected.');
@@ -475,7 +476,7 @@ export async function runSession({
   }
 
   await startSession();
-  onStatus?.('Armed — open Mystery Gift → Wireless on Emerald now (adapter must already be connected)');
+  onStatus?.(readyMessage);
   try {
     return await pollSessionEvents({ onStatus, timeoutMs });
   } finally {

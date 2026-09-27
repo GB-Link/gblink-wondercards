@@ -29,5 +29,6 @@ export const jpajFrlgWondercardEvents = JPAJ_FRLG_WONDERCARDS.map((card) =>
     unameBytes: identity.unameBytes,
     payloadBytes: card.payload,
     guideSteps: GUIDE,
+    game: 'frlg',
   }),
 );

@@ -3,6 +3,7 @@ import { blisyMysteryEvent } from './blisy-mystery-event.js';
 import { jpajWondercardEvents } from './jpaj-events.js';
 import { jpajFrlgWondercardEvents } from './jpaj-frlg-events.js';
 import { goppierWondercardEvents } from './goppier-events.js';
+import { customWondercardEvents } from './custom-events.js';
 import { createEventDescriptor } from './descriptor.js';
 import {
   buildWonderDistributorGname,
@@ -18,6 +19,8 @@ export { JPAJ_WONDERCARDS } from './jpaj-wondercards.js';
 export { JPAJ_FRLG_WONDERCARDS } from './jpaj-frlg-wondercards.js';
 export { goppierWondercardEvents } from './goppier-events.js';
 export { GOPPIER_WONDERCARDS } from './goppier-wondercards.js';
+export { customWondercardEvents } from './custom-events.js';
+export { CUSTOM_WONDERCARDS } from './custom-wondercards.js';
 export {
   BLISY_TICKET_PAYLOAD,
   BLISY_WONDERCARD_BYTES,
@@ -49,6 +52,10 @@ export const EVENT_GROUPS = [
   {
     label: 'Project Wonder (Goppier)',
     events: [...goppierWondercardEvents],
+  },
+  {
+    label: 'Custom',
+    events: [...customWondercardEvents],
   },
 ];
 
