@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Deliver Pokémon Emerald Mystery Gift events over a GB-Link adapter."
+    />
+    <title>GB-Link Wonder Cards</title>
+    <link rel="icon" href="/favicon.ico" />
+    <link rel="stylesheet" href="/src/assets/styles/style.css" />
+  </head>
+  <body>
+    <header class="title-bar">
+      <h1>GB-Link Wonder Cards</h1>
+    </header>
+
+    <main class="app">
+      <section class="panel">
+        <label for="event-select">Event</label>
+        <select id="event-select" aria-label="Select event"></select>
+      </section>
+
+      <section class="status-panel">
+        <div class="stepper" id="stepper">
+          <div class="stepper-step" data-step="connect">
+            <div class="step-node"></div>
+            <span>Connect</span>
+          </div>
+          <div class="stepper-line"></div>
+          <div class="stepper-step" data-step="event">
+            <div class="step-node"></div>
+            <span>Event</span>
+          </div>
+          <div class="stepper-line"></div>
+          <div class="stepper-step" data-step="game">
+            <div class="step-node"></div>
+            <span>In game</span>
+          </div>
+          <div class="stepper-line"></div>
+          <div class="stepper-step" data-step="session">
+            <div class="step-node"></div>
+            <span>Deliver</span>
+          </div>
+          <div class="stepper-line"></div>
+          <div class="stepper-step" data-step="done">
+            <div class="step-node"></div>
+            <span>Done</span>
+          </div>
+        </div>
+
+        <div class="status-row">
+          <span id="status-indicator" class="indicator" data-type="idle"></span>
+          <p id="status-text" class="status">Choose an event, then connect.</p>
+        </div>
+
+        <div id="instruction-box" class="instruction-box">
+          <span class="instruction-label" id="instruction-label">Next step</span>
+          <span id="instruction-text"
+            >Choose an event, then connect the GB-Link adapter.</span
+          >
+        </div>
+      </section>
+
+      <div id="result-banner" class="result" hidden role="status" aria-live="polite">
+        <div class="result-mark" aria-hidden="true"></div>
+        <div class="result-copy">
+          <p id="result-title" class="result-title"></p>
+          <p id="result-detail" class="result-detail"></p>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button type="button" id="connect-btn" class="primary">Connect</button>
+        <button type="button" id="disconnect-btn" class="secondary" disabled>
+          Disconnect
+        </button>
+      </div>
+
+      <section class="log-panel" id="log-panel" hidden>
+        <div class="log-header">
+          <span class="log-label">Log</span>
+          <button type="button" id="copy-log-btn" class="secondary log-copy-btn">
+            Copy
+          </button>
+        </div>
+        <pre id="log"></pre>
+      </section>
+
+      <footer>
+        <p>
+          Requires Chrome, Edge, or Firefox and a
+          <a href="https://gblink.io" target="_blank" rel="noopener"
+            >GB-Link USB adapter</a
+          >.
+        </p>
+        <p>
+          Project by
+          <a href="https://github.com/raphaelz" target="_blank" rel="noopener"
+            >raphaelz</a
+          >
+          ·
+          <a href="#">Project source</a>
+        </p>
+        <p class="footer-brand">
+          <img src="/favicon.ico" alt="" width="16" height="16" />
+          <a href="https://gblink.io" target="_blank" rel="noopener"
+            >GB-Link Project</a
+          >
+        </p>
+      </footer>
+    </main>
+    <script type="module" src="/src/main.js"></script>
+    <script src="/launcher-return.js"></script>
+  </body>
+</html>
