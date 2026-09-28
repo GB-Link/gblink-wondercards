@@ -45,5 +45,6 @@ export const customWondercardEvents = CUSTOM_WONDERCARDS.map((card) => {
     payloadBytes: card.payload,
     guideSteps: guideFor(card),
     game: card.game ?? 'frlg',
+    hook: card.hook ?? null,
   });
 });

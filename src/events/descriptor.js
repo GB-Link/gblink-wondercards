@@ -13,6 +13,7 @@ export function createEventDescriptor(partial = {}) {
     payloadBytes: partial.payloadBytes ?? null,
     guideSteps: partial.guideSteps ?? [],
     game: partial.game ?? 'emerald',
+    hook: partial.hook ?? null,
   };
 }
 

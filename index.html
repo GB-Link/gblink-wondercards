@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="Deliver Pokémon Emerald Mystery Gift events over a GB-Link adapter."
+      content="Send Wonder Cards to Pokémon Emerald, FireRed and LeafGreen through a GB-Link adapter in wireless adapter mode."
     />
     <title>GB-Link Wonder Cards</title>
     <link rel="icon" href="/favicon.ico" />
@@ -62,6 +62,15 @@
           >
         </div>
       </section>
+
+      <div id="decision" class="decision" hidden role="alertdialog" aria-labelledby="decision-title">
+        <p id="decision-title" class="decision-title"></p>
+        <p id="decision-detail" class="decision-detail"></p>
+        <div class="decision-actions">
+          <button type="button" id="decision-send" class="primary">Send anyway</button>
+          <button type="button" id="decision-skip" class="secondary">Don't send</button>
+        </div>
+      </div>
 
       <div id="result-banner" class="result" hidden role="status" aria-live="polite">
         <div class="result-mark" aria-hidden="true"></div>

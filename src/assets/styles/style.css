@@ -332,6 +332,40 @@ body[data-phase='complete'] .title-bar {
   color: var(--ink);
 }
 
+.decision {
+  margin-top: 1.15rem;
+  padding: 1rem 1.05rem;
+  background: var(--menu);
+  border: 3px solid var(--cursor);
+  border-radius: var(--radius);
+  box-shadow: 4px 4px 0 var(--shadow);
+}
+
+.decision[hidden] { display: none; }
+
+.decision-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.decision-detail {
+  margin: 0.35rem 0 0;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.decision-detail:empty { display: none; }
+
+.decision-actions {
+  display: flex;
+  gap: 0.65rem;
+  margin-top: 0.9rem;
+}
+
+.decision-actions button { flex: 1; }
+
 .actions {
   display: flex;
   gap: 0.65rem;
