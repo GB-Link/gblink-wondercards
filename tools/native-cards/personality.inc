@@ -6,6 +6,9 @@
 @ id) as it was. For an Unown the second byte keeps its two low bits, and with
 @ the rest that keeps its letter.
 @
+@ With PERSONALITY_SET_ONLY set, the include holds `set_personality` instead,
+@ which gives the Pokémon at r0 personality r1 the same way.
+@
 @ Parameters (--defsym): GET_MON_DATA. Needs mons.inc with MONS_ORDER.
 
     .equ REP_NATURE, 48                 @ frame: 48 bytes of reordered data, then
@@ -16,6 +19,14 @@
     .equ SPECIES_UNOWN, 201
     .equ MON_DATA_SPECIES, 11
 
+.ifdef PERSONALITY_SET_ONLY
+set_personality:
+    push {r4, r5, r6, r7, lr}
+    sub sp, #REP_FRAME
+    movs r5, r0
+    movs r7, r1
+    ldr r6, [r5, #MON_PERSONALITY]
+.else
 repersonalize:
     push {r4, r5, r6, r7, lr}
     sub sp, #REP_FRAME
@@ -58,6 +69,7 @@ repersonalize:
     movs r0, #0
     b 9f
 2:  ldr r7, [sp, #REP_CANDIDATE]
+.endif
     movs r0, r6
     bl rep_order
     str r0, [sp, #REP_NATURE]           @ from here: the old order
@@ -112,8 +124,10 @@ rep_order:
     ldrb r0, [r1, r0]
     pop {pc}
 
+.ifndef PERSONALITY_SET_ONLY
 rep_call:
     bx r3
 
     .align 2
 rep_get_mon_data: .word GET_MON_DATA
+.endif

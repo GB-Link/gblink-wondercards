@@ -1,10 +1,12 @@
-@ Fly Anywhere. `install` starts a V-blank hook: R pressed in the field, while
-@ the player stands still with the controls free on a map where FLY works,
-@ opens the FLY map without a Pokémon that knows FLY. Choosing a place flies
-@ there as FLY does; B goes back to the field instead of to the party menu.
-@ The Pokémon shown flying is the first in the party that knows FLY, else the
-@ first that isn't an Egg; with neither, R does nothing. On FireRed/LeafGreen
-@ R no longer opens the Help menu (L still does). The hook is copied to
+@ Travel Anywhere. `install` starts a V-blank hook: R pressed in the field,
+@ while the player stands still with the controls free on a map where FLY
+@ works, opens the FLY map without a Pokémon that knows FLY. Choosing a place
+@ flies there as FLY does; B goes back to the field instead of to the party
+@ menu. The Pokémon shown flying is the first in the party that knows FLY,
+@ else the first that isn't an Egg; with neither, R does nothing. On
+@ FireRed/LeafGreen R no longer opens the Help menu (L still does). In the
+@ field the hook also marks the map as one for running and cycling, which the
+@ game checks when the player runs or gets on the BIKE. The hook is copied to
 @ RESIDENT like the others, so it lasts until the game is reset; `uninstall`
 @ turns it off and gives R back to the Help menu.
 @
@@ -19,7 +21,7 @@
 @ CB2_RETURN_TO_PARTY_FROM_FLY, CB2_RETURN_TO_FIELD, MAP_ALLOWS_FLY,
 @ GET_MON_DATA, HIDE_MAP_NAME, FREEZE_OBJECT_EVENTS, STOP_PLAYER_AVATAR,
 @ FADE_SCREEN, RAIN_SOUND_STOP, CLEANUP_OVERWORLD, SCANLINE_EFFECT_STOP,
-@ RESET_TASKS, CREATE_TASK and STATE.
+@ RESET_TASKS, CREATE_TASK, EMERALD and STATE.
 
     .syntax unified
     .thumb
@@ -38,6 +40,14 @@
     .equ BUTTON_R_BIT, 8
     .equ TILE_TRANSITION_STATE, 3       @ in gPlayerAvatar: 0 while standing still
     .equ MAP_TYPE, 0x17                 @ in gMapHeader
+.if EMERALD
+    .equ MAP_FLAGS, 0x1A                @ allowCycling bit 0, allowRunning bit 2
+    .equ RUN_AND_BIKE, 5
+.else
+    .equ MAP_BIKING, 0x18               @ bikingAllowed
+    .equ MAP_FLAGS, 0x19                @ allowRunning bit 1
+    .equ RUN_AND_BIKE, 2
+.endif
     .equ PARTY_MENU_SLOT, 9             @ gPartyMenu.slotId, which FLY shows
     .equ FADE_ACTIVE, 6                 @ gPaletteFade: bit 15 of this halfword
     .equ TASK_SIZE, 0x28
@@ -136,6 +146,15 @@ resident:
 2:  ldr r1, r_cb2_overworld
     cmp r0, r1
     bne 9f
+    ldr r1, r_map_header
+    ldrb r0, [r1, #MAP_FLAGS]
+    movs r2, #RUN_AND_BIKE
+    orrs r0, r2
+    strb r0, [r1, #MAP_FLAGS]
+.if EMERALD == 0
+    movs r0, #1
+    strb r0, [r1, #MAP_BIKING]
+.endif
     movs r0, #0
     strb r0, [r4, #FLYING]
     ldrh r0, [r7, #MAIN_NEW_KEYS]

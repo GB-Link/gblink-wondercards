@@ -10,6 +10,9 @@
 @ PRINT_MENU_ITEMS (PrintMenuTable / MultichoiceList_PrintItems),
 @ INIT_MENU_CURSOR, MULTICHOICE_TASK (InitMultichoiceCheckWrap /
 @ CreateMCMenuInputHandlerTask) and SCHEDULE_BG_COPY.
+@
+@ With MENU_LISTS set, `list_menu` is `menu` for r1 names that follow one
+@ another from r0, each word-aligned (as data.inc lays them out).
 
     .equ MENU_RIGHT, 28                 @ the box ends at this column
     .equ MENU_ID, 2                     @ a multichoice id with no extras
@@ -105,6 +108,30 @@ menu:
 
 menu_call:
     bx r4
+
+.ifdef MENU_LISTS
+list_menu:
+    push {r4, lr}
+    sub sp, #32
+    movs r3, #0
+1:  lsls r4, r3, #2
+    add r4, sp
+    str r0, [r4]
+2:  ldrb r4, [r0]                       @ past the name's EOS, to the next word
+    adds r0, #1
+    cmp r4, #0xFF
+    bne 2b
+    adds r0, #3
+    lsrs r0, r0, #2
+    lsls r0, r0, #2
+    adds r3, #1
+    cmp r3, r1
+    bne 1b
+    mov r0, sp
+    bl menu
+    add sp, #32
+    pop {r4, pc}
+.endif
 
     .align 2
 menu_list:          .word MENU_LIST

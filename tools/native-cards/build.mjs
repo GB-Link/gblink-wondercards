@@ -49,18 +49,24 @@ const UNSET = 0;
 const ITEM_LANSAT_BERRY = 173;
 const ITEM_STARF_BERRY = 174;
 const ITEM_ENIGMA_BERRY = 175;
+const ITEM_RARE_CANDY = 68;
+const ITEM_COIN_CASE = 260;
 const PARTY_SIZE = 6;
 const SPECIES_EGG = 412;
+const SPECIES_UNOWN = 201;
 const MAX_MON_MOVES = 4;
 const FADE_FROM_BLACK = 0;
 const FADE_TO_BLACK = 1;
 const FADE_FROM_WHITE = 2;
 const FADE_TO_WHITE = 3;
-// The state of the shiny and roamer hooks (shiny.s, roamer.s), first byte 1
-// while on; the shiny hook keeps at SHINY_NAME the name of the Pokémon met in
-// a row.
+// The state of the V-blank hooks (shiny.s, roamer.s, fly.s, tm.s, feebas.s),
+// first byte 1 while on; the shiny hook keeps at SHINY_NAME the name of the
+// Pokémon met in a row.
 const HOOK_STATE = 0x0203ff60;
 const SHINY_NAME = HOOK_STATE + 12;
+
+// first..last, both included.
+const range = (first, last) => Array.from({ length: last - first + 1 }, (_, i) => first + i);
 
 // What FireRed/LeafGreen and Emerald each keep the same across their ROMs:
 // offsets in SaveBlock1 and the numbers of the game's specials.
@@ -76,8 +82,10 @@ const FAMILIES = {
     },
     flags: {
       pokedex: 0x829, nationalDex: 0x840, ribbons: 0x83b, mysteryGiftDone: 0x3d8, pendingDaycareEgg: 0x266,
+      // FLAG_TUTOR_DOUBLE_EDGE to FLAG_TUTOR_BODY_SLAM, then the three ultimate moves
+      tutors: [...range(0x2c0, 0x2ce), ...range(0x2de, 0x2e0)],
     },
-    vars: {},
+    vars: { repelSteps: 0x4020 },
     songs: { giftMon: 257 },            // MUS_LEVEL_UP, which FireRed/LeafGreen play for a gift Pokémon
   },
   emerald: {
@@ -87,12 +95,13 @@ const FAMILIES = {
       choosePartyMon: 0xa2, eggHatch: 0xc5, changePokemonNickname: 0xa1, getPartyMonSpecies: 0x149,
       enableNationalPokedex: 0x1f3, chooseMonForMoveRelearner: 0xde, teachMoveRelearnerMove: 0xe3,
       isSelectedMonEgg: 0x14a, getNumMovesSelectedMonHas: 0xe2, chooseMoveToForget: 0xdf, moveDeleterForgetMove: 0xe0,
-      bufferMoveDeleterNicknameAndMove: 0xe1, isLastMonThatKnowsSurf: 0x209,
+      bufferMoveDeleterNicknameAndMove: 0xe1, isLastMonThatKnowsSurf: 0x209, giveFrontierBattlePoints: 0x1ca,
     },
     flags: {
       pokedex: 0x861, nationalDex: 0x896, ribbons: 0x89b, mysteryGiftDone: 0x1e4, pendingDaycareEgg: 0x86,
+      tutors: range(0x1b1, 0x1ba),      // FLAG_MOVE_TUTOR_TAUGHT_SWAGGER to _EXPLOSION
     },
-    vars: { mirageHigh: 0x4024 },
+    vars: { mirageHigh: 0x4024, repelSteps: 0x4021 },
     songs: { giftMon: 370 },            // MUS_OBTAIN_ITEM, which Emerald plays for one
   },
 };
@@ -131,7 +140,9 @@ const end = () => [0x02];
 const loadword = (index, value) => [0x0f, index, ...u32(value)];
 const writebytetoaddr = (value, address) => [0x11, value, ...u32(address)];
 const setvar = (variable, value) => [0x16, ...u16(variable), ...u16(value)];
+const addvar = (variable, value) => [0x17, ...u16(variable), ...u16(value)];
 const setflag = (flag) => [0x29, ...u16(flag)];
+const clearflag = (flag) => [0x2a, ...u16(flag)];
 const checkflag = (flag) => [0x2b, ...u16(flag)];
 const additem = (item, quantity = 1) => [0x44, ...u16(item), ...u16(quantity)];
 const checkitemspace = (item, quantity = 1) => [0x46, ...u16(item), ...u16(quantity)];
@@ -150,6 +161,8 @@ const waitmessage = () => [0x66];
 const message = (address) => [0x67, ...u32(address)];
 const closemessage = () => [0x68];
 const lock = () => [0x6a];
+const getpartysize = () => [0x43];
+const bufferspeciesname = (index, variable) => [0x7d, index, ...u16(variable)];
 const bufferpartymonnick = (index, variable) => [0x7f, index, ...u16(variable)];
 const buffernumberstring = (index, variable) => [0x83, index, ...u16(variable)];
 const bufferstring = (index, address) => [0x85, index, ...u32(address)];
@@ -161,6 +174,10 @@ const setvaddress = (address) => [0xb8, ...u32(address)];
 const vgoto = (label) => [0xb9, { label }];
 const vgotoIf = (condition, label) => [0xbb, condition, { label }];
 const vmessage = (label) => [0xbd, { label }];
+const giveegg = (variable) => [0x7a, ...u16(variable)];
+const addmoney = (amount) => [0x90, ...u32(amount), 0];
+const checkitem = (item, quantity = 1) => [0x47, ...u16(item), ...u16(quantity)];
+const addcoins = (coins) => [0xb4, ...u16(coins)];
 const playfanfare = (song) => [0x31, ...u16(song)];
 const waitfanfare = () => [0x32];
 const say = (label) => [...vmessage(label), ...waitmessage(), ...waitbuttonpress(), ...closemessage(),
@@ -174,7 +191,7 @@ const relocate = () => [...native('relocate'), { define: 'relocated' }, 0xb8, { 
 // Text characters; ¶ starts a new box.
 const CHARSET = new Map([
   [' ', 0x00], ['&', 0x2d], ['é', 0x1b], ['!', 0xab], ['?', 0xac], ['.', 0xad], ['-', 0xae], ['…', 0xb0], ['’', 0xb4],
-  ["'", 0xb4], [',', 0xb8], ['×', 0xb9], ['/', 0xba], [':', 0xf0], ['¶', 0xfb], ['\n', 0xfe],
+  ["'", 0xb4], [',', 0xb8], ['×', 0xb9], ['¥', 0xb7], ['/', 0xba], [':', 0xf0], ['¶', 0xfb], ['\n', 0xfe],
 ]);
 for (let i = 0; i < 10; i++) CHARSET.set(String(i), 0xa1 + i);
 for (let i = 0; i < 26; i++) {
@@ -277,11 +294,14 @@ const JUDGE_TOKENS = {
 };
 
 // An event Pokémon card (eventmon.s): once per card, into the party or the PC.
+// `choose` (offerMon) asks which Pokémon first, whose name is then shown.
 const MON_GIVEN_TO_PC = 1;
 const MON_CANT_GIVE = 2;
-const eventMonScript = (game, name) => ({
+const eventMonScript = (game, name, { choose = [], texts = {} } = {}) => ({
   body: [
     ...checkflag(game.flags.mysteryGiftDone), ...vgotoIf(EQ, 'already'),
+    ...choose,
+    ...getpartysize(),
     ...native('give_mon'),
     ...compareVarToValue(VAR_RESULT, MON_CANT_GIVE), ...vgotoIf(EQ, 'full'),
     ...setflag(game.flags.mysteryGiftDone),
@@ -295,14 +315,34 @@ const eventMonScript = (game, name) => ({
     ...say('already_text'),
     { define: 'full' },
     ...say('full_text'),
+    ...(choose.length ? [{ define: 'declined' }, ...say('declined_text')] : []),
   ],
   texts: {
-    received_text: `{PLAYER} received ${name}!`,
-    pc_text: 'Your party is full, so it went\nto the PC.',
-    already_text: `Receive this card again for\nanother ${name}!`,
-    full_text: 'There’s no room for it in your\nparty or the PC!',
+    received_text: `{PLAYER} received ${name ?? '{STR_VAR_1}'}!`,
+    pc_text: 'It was sent to the PC.',
+    already_text: `Receive the card again for\nanother ${name ?? 'one'}!`,
+    full_text: 'Your party and the PC are full!',
+    ...(choose.length && { declined_text: 'Come back any time!' }),
+    ...texts,
   },
 });
+
+const VISIT = ['Visit the deliveryman on 2F', 'of a POKéMON CENTER.'];
+
+// Offers the card's Pokémon in turn (offer), their names in STR_VAR_1, until
+// one is taken: VAR_0x8004.
+const offerMon = [
+  ...setvar(VAR_0x8004, 0),
+  { define: 'offer' },
+  ...native('offer'),
+  ...compareVarToValue(VAR_RESULT, 0), ...vgotoIf(EQ, 'declined'),
+  ...bufferspeciesname(0, VAR_0x8006),
+  ...vmessage('offer_text'), ...waitmessage(), ...yesnobox(),
+  ...compareVarToValue(VAR_RESULT, 1), ...vgotoIf(EQ, 'chosen'),
+  ...addvar(VAR_0x8004, 1),
+  ...vgoto('offer'),
+  { define: 'chosen' },
+];
 
 const CARDS = [
   ...Object.entries(SPEEDS).map(([speedId, { message, ...symbols }]) => ({
@@ -367,13 +407,13 @@ const CARDS = [
     }),
   },
   {
-    id: 'custom-instant-hatch',
-    source: 'hatch.s',
+    id: 'custom-instant-eggs',
+    source: 'eggs.s',
     card: {
       flagId: 1016, idNumber: 16, iconSpecies: 412, bgType: 1,
-      title: 'INSTANT EGG HATCH',
-      subtitle: 'Skip the walking!',
-      body: ['Carrying EGGS? Visit the', 'deliveryman on the 2nd floor', 'of a POKéMON CENTER to hatch', 'them all right away!'],
+      title: 'INSTANT EGGS',
+      subtitle: 'Hatch now, or get one now',
+      body: ['Hatch the EGGS you carry, or', 'get the DAY CARE’s EGG right', 'away. Visit the deliveryman', 'on 2F of a POKéMON CENTER.'],
       footer: FOOTER,
     },
     // Each Egg hatches with the game's own scene. The delay lets the overworld
@@ -381,47 +421,79 @@ const CARDS = [
     script: (game) => ({
       body: [
         ...native('prepare'),
-        ...compareVarToValue(VAR_RESULT, 0), ...vgotoIf(EQ, 'no_eggs'),
+        ...compareVarToValue(VAR_RESULT, 0), ...vgotoIf(EQ, 'daycare'),
         ...vmessage('ask_text'), ...waitmessage(), ...yesnobox(),
-        ...compareVarToValue(VAR_RESULT, 0), ...vgotoIf(EQ, 'declined'),
+        ...compareVarToValue(VAR_RESULT, 0), ...vgotoIf(EQ, 'daycare'),
         ...closemessage(),
         ...relocate(),
         { define: 'next' },
         ...native('next_egg'),
-        ...compareVarToValue(VAR_RESULT, 0), ...vgotoIf(EQ, 'done'),
+        ...compareVarToValue(VAR_RESULT, 0), ...vgotoIf(EQ, 'hatched'),
         ...special(game.specials.eggHatch), ...waitstate(),
         ...delay(16),
         ...vgoto('next'),
-        { define: 'done' },
-        ...say('done_text'),
-        { define: 'no_eggs' },
-        ...say('no_eggs_text'),
+        { define: 'hatched' },
+        ...say('hatched_text'),
+        { define: 'daycare' },
+        ...vmessage('daycare_text'), ...waitmessage(), ...yesnobox(),
+        ...compareVarToValue(VAR_RESULT, 0), ...vgotoIf(EQ, 'declined'),
+        ...checkflag(game.flags.pendingDaycareEgg), ...vgotoIf(EQ, 'waiting'),
+        ...native('daycare_egg'),
+        ...compareVarToValue(VAR_RESULT, 0), ...vgotoIf(EQ, 'no_pair'),
+        ...say('ready_text'),
+        { define: 'waiting' },
+        ...say('waiting_text'),
+        { define: 'no_pair' },
+        ...say('no_pair_text'),
         { define: 'declined' },
         ...say('declined_text'),
       ],
       texts: {
         ask_text: 'You have EGGS with you!\nShall I hatch them right now?',
-        done_text: 'Take good care of them!',
-        no_eggs_text: 'Come back when you have an\nEGG in your party!',
+        hatched_text: 'Take good care of them!',
+        daycare_text: 'Shall I have the DAY CARE’s\nEGG ready for you right away?',
+        ready_text: 'The DAY CARE has an EGG\nready for you now!',
+        waiting_text: 'The DAY CARE already has an\nEGG waiting for you!',
+        no_pair_text: 'Leave two POKéMON that get\nalong at the DAY CARE first!',
         declined_text: 'Come back any time!',
       },
     }),
   },
   {
-    id: 'custom-max-friendship',
+    id: 'custom-friendship',
     source: 'friendship.s',
     card: {
       flagId: 1017, idNumber: 17, iconSpecies: 172, bgType: 4,
-      title: 'MAX FRIENDSHIP',
-      subtitle: 'Friends for life!',
-      body: ['Make every POKéMON in your', 'party as friendly as can be.', 'Visit the deliveryman on the', '2nd floor of a POKéMON CENTER.'],
+      title: 'FRIENDSHIP CHECKER',
+      subtitle: 'How close are you?',
+      body: ['See how friendly a POKéMON is,', 'then make it or your party as', 'friendly as can be. Visit the', 'deliveryman on 2F of a CENTER.'],
       footer: FOOTER,
     },
-    script: askingScript({
-      entry: 'befriend',
-      ask: 'I can make your party POKéMON\nas friendly as can be.¶Shall I?',
-      done: 'There! Your POKéMON adore\nyou now.',
-      declined: 'Come back any time!',
+    data: { max_items: 'THIS POKéMON', max_party: 'WHOLE PARTY', max_no: 'NO THANKS' },
+    script: (game) => partyMonScript(game, {
+      which: 'Whose friendship should I\ncheck?',
+      egg: 'An EGG hasn’t made friends yet!',
+      steps: [
+        ...native('check'), ...buffernumberstring(1, VAR_0x8005),
+        ...vmessage('value_text'), ...waitmessage(), ...waitbuttonpress(),
+        ...vmessage('ask_text'), ...waitmessage(),
+        ...native('max_menu'), ...waitstate(),
+        ...compareVarToValue(VAR_RESULT, 2), ...vgotoIf(GE, 'declined'),
+        ...native('befriend'),
+        ...compareVarToValue(VAR_RESULT, 0), ...vgotoIf(NE, 'party'),
+        ...say('one_text'),
+        { define: 'party' },
+        ...say('party_text'),
+        { define: 'declined' },
+        ...say('declined_text'),
+      ],
+      texts: {
+        value_text: '{STR_VAR_1}’s friendship is\n{STR_VAR_2} out of 255.',
+        ask_text: 'Shall I make it as friendly\nas can be?',
+        one_text: '{STR_VAR_1} adores you now!',
+        party_text: 'Your whole party adores you\nnow!',
+        declined_text: 'Come back any time!',
+      },
     }),
   },
   {
@@ -457,35 +529,42 @@ const CARDS = [
   },
   {
     id: 'custom-no-encounters',
+    source: 'encounters.s',
     card: {
       flagId: 1020, idNumber: 20, iconSpecies: 41, bgType: 7,
-      title: 'NO WILD ENCOUNTERS',
+      title: 'NO ENCOUNTERS & REPEL',
       subtitle: 'Wild POKéMON, stay away!',
-      body: ['Walk through grass and caves', 'without wild POKéMON. Visit', 'the deliveryman on the 2nd', 'floor of a POKéMON CENTER.'],
+      body: ['Keep all wild POKéMON away,', 'or only the weaker ones. Visit', 'the deliveryman on the 2nd', 'floor of a POKéMON CENTER.'],
       footer: FOOTER,
     },
+    data: { choice_items: 'ALL OF THEM', choice_weaker: 'WEAKER ONES', choice_none: 'NONE' },
     // sWildEncountersDisabled, which the game only clears at boot and after
-    // FireRed/LeafGreen's recap on Continue.
+    // FireRed/LeafGreen's recap on Continue; and a REPEL's step count.
     script: (game) => ({
       body: [
-        ...compareAddrToValue(game.symbols.WILD_ENCOUNTERS_DISABLED, 1), ...vgotoIf(EQ, 'turn_on'),
-        ...vmessage('ask_off_text'), ...waitmessage(), ...yesnobox(),
-        ...compareVarToValue(VAR_RESULT, 0), ...vgotoIf(EQ, 'declined'),
+        ...vmessage('ask_text'), ...waitmessage(),
+        ...native('choice_menu'), ...waitstate(),
+        ...compareVarToValue(VAR_RESULT, 1), ...vgotoIf(EQ, 'weaker'),
+        ...compareVarToValue(VAR_RESULT, 2), ...vgotoIf(EQ, 'none'),
+        ...compareVarToValue(VAR_RESULT, 0), ...vgotoIf(NE, 'declined'),
         ...writebytetoaddr(1, game.symbols.WILD_ENCOUNTERS_DISABLED),
-        ...say('off_text'),
-        { define: 'turn_on' },
-        ...vmessage('ask_on_text'), ...waitmessage(), ...yesnobox(),
-        ...compareVarToValue(VAR_RESULT, 0), ...vgotoIf(EQ, 'declined'),
+        ...say('all_text'),
+        { define: 'weaker' },
         ...writebytetoaddr(0, game.symbols.WILD_ENCOUNTERS_DISABLED),
-        ...say('on_text'),
+        ...setvar(game.vars.repelSteps, 0xffff),
+        ...say('weaker_text'),
+        { define: 'none' },
+        ...writebytetoaddr(0, game.symbols.WILD_ENCOUNTERS_DISABLED),
+        ...setvar(game.vars.repelSteps, 0),
+        ...say('none_text'),
         { define: 'declined' },
         ...say('declined_text'),
       ],
       texts: {
-        ask_off_text: 'I can keep wild POKéMON away\nuntil you turn off your game.¶Shall I?',
-        off_text: 'Done! Talk to me again to\nbring them back.',
-        ask_on_text: 'Wild POKéMON are staying away.\nWant them back?',
-        on_text: 'Wild POKéMON are back!',
+        ask_text: 'Which wild POKéMON should\nstay away?',
+        all_text: 'None will appear until you\nturn off your game.',
+        weaker_text: 'Like a REPEL that lasts\n65,535 steps!',
+        none_text: 'Wild POKéMON are back to\nnormal!',
         declined_text: 'Come back any time!',
       },
     }),
@@ -676,34 +755,6 @@ const CARDS = [
     }),
   },
   {
-    id: 'custom-hyper-training',
-    source: 'hypertrain.s',
-    card: {
-      flagId: 1026, idNumber: 26, iconSpecies: 68, bgType: 5,
-      title: 'HYPER TRAINING',
-      subtitle: 'Every IV to 31',
-      body: ['Raise all six IVs of a', 'POKéMON to the maximum, 31.', 'Visit the deliveryman on 2F', 'of a POKéMON CENTER.'],
-      footer: FOOTER,
-    },
-    script: (game) => partyMonScript(game, {
-      which: 'Which POKéMON should I train?',
-      egg: 'An EGG can’t train yet!',
-      steps: [
-        ...vmessage('ask_text'), ...waitmessage(), ...yesnobox(),
-        ...compareVarToValue(VAR_RESULT, 0), ...vgotoIf(EQ, 'declined'),
-        ...native('max_ivs'),
-        ...say('done_text'),
-        { define: 'declined' },
-        ...say('declined_text'),
-      ],
-      texts: {
-        ask_text: 'All of {STR_VAR_1}’s IVs will\nbe 31. Shall I start?',
-        done_text: '{STR_VAR_1}’s IVs are all 31\nnow!',
-        declined_text: 'Come back any time!',
-      },
-    }),
-  },
-  {
     id: 'custom-pp-max',
     source: 'ppmax.s',
     card: {
@@ -721,47 +772,134 @@ const CARDS = [
     }),
   },
   {
-    id: 'custom-beauty',
-    source: 'beauty.s',
+    id: 'custom-max-conditions',
+    source: 'conditions.s',
     card: {
-      flagId: 1028, idNumber: 28, iconSpecies: 328, bgType: 1,
-      title: 'BEAUTY FOR MILOTIC',
-      subtitle: 'FEEBAS, evolve!',
-      body: ['Make a POKéMON as beautiful', 'as can be, and FEEBAS evolves', 'at its next level. Visit the', 'deliveryman on 2F.'],
+      flagId: 1028, idNumber: 28, iconSpecies: 329, bgType: 1,
+      title: 'MAX CONDITIONS',
+      subtitle: 'Contest ready!',
+      body: ['COOL, BEAUTY, CUTE, SMART and', 'TOUGH to the max: a FEEBAS', 'then evolves at its next level.', 'Visit 2F of a POKéMON CENTER.'],
       footer: FOOTER,
     },
     script: (game) => partyMonScript(game, {
-      which: 'Which POKéMON should I make\nbeautiful?',
-      egg: 'An EGG is beautiful as it is!',
+      which: 'Which POKéMON should I get\nready for contests?',
+      egg: 'An EGG can’t enter contests!',
       steps: [
-        ...native('max_beauty'),
+        ...native('max_conditions'),
         ...say('done_text'),
       ],
       texts: {
-        done_text: '{STR_VAR_1} looks stunning!¶A FEEBAS this beautiful will\nevolve at its next level.',
+        done_text: '{STR_VAR_1} is in top condition!¶A FEEBAS in this condition will\nevolve at its next level.',
       },
     }),
   },
   {
     id: 'custom-hidden-power',
     source: 'hiddenpower.s',
+    symbols: { PICK: 0 },
     card: {
       flagId: 1029, idNumber: 29, iconSpecies: 201, bgType: 2,
-      title: 'HIDDEN POWER CHECK',
-      subtitle: 'What type is it?',
-      body: ['Find out the type and power', 'of a POKéMON’s HIDDEN POWER.', 'Visit the deliveryman on 2F', 'of a POKéMON CENTER.'],
+      title: 'HIDDEN POWER & IVS',
+      subtitle: 'Check it, then max it',
+      body: ['See a POKéMON’s HIDDEN POWER,', 'then raise all its IVs to 31', 'if you like. Visit the 2F', 'deliveryman of a CENTER.'],
       footer: FOOTER,
     },
     script: (game) => partyMonScript(game, {
       which: 'Whose HIDDEN POWER should I\ncheck?',
       egg: 'An EGG keeps its power hidden!',
       steps: [
-        ...native('hidden_power'),
-        ...buffernumberstring(2, VAR_0x8005),
-        ...say('power_text'),
+        ...native('hidden_power'), ...buffernumberstring(2, VAR_0x8005),
+        ...vmessage('power_text'), ...waitmessage(), ...waitbuttonpress(),
+        ...vmessage('ask_text'), ...waitmessage(), ...yesnobox(),
+        ...compareVarToValue(VAR_RESULT, 0), ...vgotoIf(EQ, 'declined'),
+        ...native('max_ivs'),
+        ...native('hidden_power'), ...buffernumberstring(2, VAR_0x8005),
+        ...say('trained_text'),
+        { define: 'declined' },
+        ...say('declined_text'),
       ],
       texts: {
         power_text: '{STR_VAR_1}’s HIDDEN POWER is\n{STR_VAR_2}-type, power {STR_VAR_3}.',
+        ask_text: 'Shall I raise all its IVs\nto 31?',
+        trained_text: 'All its IVs are 31 now!¶Its HIDDEN POWER is\n{STR_VAR_2}-type, power {STR_VAR_3}.',
+        declined_text: 'Come back any time!',
+      },
+    }),
+  },
+  {
+    id: 'custom-hidden-power-type',
+    source: 'hiddenpower.s',
+    symbols: { PICK: 1 },
+    card: {
+      flagId: 1057, idNumber: 57, iconSpecies: 201, bgType: 6,
+      title: 'HIDDEN POWER TYPE',
+      subtitle: 'Any type, power 70',
+      body: ['Give a POKéMON’s HIDDEN POWER', 'the type you choose. Visit', 'the deliveryman on the 2nd', 'floor of a POKéMON CENTER.'],
+      footer: FOOTER,
+    },
+    data: { kind_items: 'PHYSICAL', kind_special: 'SPECIAL' },
+    script: (game) => partyMonScript(game, {
+      which: 'Whose HIDDEN POWER should I\nchange?',
+      egg: 'An EGG keeps its power hidden!',
+      steps: [
+        ...vmessage('kind_text'), ...waitmessage(),
+        ...native('kind_menu'), ...waitstate(),
+        ...compareVarToValue(VAR_RESULT, MENU_B), ...vgotoIf(EQ, 'declined'),
+        ...copyvar(VAR_0x8006, VAR_RESULT),
+        ...vmessage('type_text'), ...waitmessage(),
+        ...native('type_menu'), ...waitstate(),
+        ...compareVarToValue(VAR_RESULT, MENU_B), ...vgotoIf(EQ, 'declined'),
+        ...native('set_type'),
+        ...say('done_text'),
+        { define: 'declined' },
+        ...say('declined_text'),
+      ],
+      texts: {
+        kind_text: 'A physical or a special type?',
+        type_text: 'Which type?',
+        done_text: 'Done! {STR_VAR_1}’s HIDDEN POWER\nis {STR_VAR_2}-type, power 70.',
+        declined_text: 'Come back any time!',
+      },
+    }),
+  },
+  {
+    id: 'custom-unown-letters',
+    source: 'unown.s',
+    card: {
+      flagId: 1056, idNumber: 56, iconSpecies: 201, bgType: 6,
+      title: 'UNOWN LETTER CHANGER',
+      subtitle: 'From A to ?',
+      body: ['Give an UNOWN any of its 28', 'letters. It keeps its nature.', 'Visit the deliveryman on 2F', 'of a POKéMON CENTER.'],
+      footer: FOOTER,
+    },
+    script: (game) => partyMonScript(game, {
+      which: 'Which UNOWN?',
+      steps: [
+        ...specialvar(VAR_RESULT, game.specials.getPartyMonSpecies),
+        ...compareVarToValue(VAR_RESULT, SPECIES_UNOWN), ...vgotoIf(NE, 'not_unown'),
+        ...vmessage('type_text'), ...waitmessage(), ...waitbuttonpress(),
+        { define: 'naming' },
+        ...closemessage(), ...fadescreen(FADE_TO_BLACK),
+        ...native('type_letter'), ...waitstate(),
+        ...native('change_letter'),
+        ...bufferpartymonnick(0, VAR_0x8004),
+        ...compareVarToValue(VAR_RESULT, 0), ...vgotoIf(EQ, 'declined'),
+        ...compareVarToValue(VAR_RESULT, 2), ...vgotoIf(EQ, 'one_letter'),
+        ...say('done_text'),
+        { define: 'one_letter' },
+        ...vmessage('one_letter_text'), ...waitmessage(), ...waitbuttonpress(),
+        ...vgoto('naming'),
+        { define: 'not_unown' },
+        ...say('not_unown_text'),
+        { define: 'declined' },
+        ...say('declined_text'),
+      ],
+      texts: {
+        type_text: 'Type its new letter:\nA to Z, ! or ?',
+        one_letter_text: 'One letter, please:\nA to Z, ! or ?',
+        done_text: '{STR_VAR_1} is the letter\n{STR_VAR_2} now!',
+        not_unown_text: 'That’s not an UNOWN!',
+        declined_text: 'Come back any time!',
       },
     }),
   },
@@ -910,6 +1048,34 @@ const CARDS = [
     }),
   },
   {
+    id: 'custom-mass-outbreak',
+    source: 'outbreak.s',
+    roms: ['BPEE 1.0'],
+    card: {
+      flagId: 1058, idNumber: 58, iconSpecies: 376, bgType: 6,
+      title: 'MASS OUTBREAK',
+      subtitle: 'Rare POKéMON, everywhere!',
+      body: ['Start a swarm of a rare HOENN', 'POKéMON where it lives. Visit', 'the deliveryman on the 2nd', 'floor of a POKéMON CENTER.'],
+      footer: FOOTER,
+    },
+    script: {
+      body: [
+        ...vmessage('which_text'), ...waitmessage(),
+        ...native('outbreak_menu'), ...waitstate(),
+        ...compareVarToValue(VAR_RESULT, MENU_B), ...vgotoIf(EQ, 'declined'),
+        ...native('start_outbreak'),
+        ...say('started_text'),
+        { define: 'declined' },
+        ...say('declined_text'),
+      ],
+      texts: {
+        which_text: 'Which POKéMON should swarm?',
+        started_text: 'There’s a mass outbreak of\n{STR_VAR_1} on {STR_VAR_2}!¶It lasts for two days.',
+        declined_text: 'Come back any time!',
+      },
+    },
+  },
+  {
     id: 'custom-berry-garden',
     source: 'berries.s',
     roms: ['BPEE 1.0'],
@@ -940,34 +1106,6 @@ const CARDS = [
         declined_text: 'Come back any time!',
       },
     },
-  },
-  {
-    id: 'custom-daycare-egg',
-    source: 'daycare.s',
-    card: {
-      flagId: 1036, idNumber: 36, iconSpecies: 175, bgType: 7,
-      title: 'INSTANT DAY CARE EGG',
-      subtitle: 'No more pacing',
-      body: ['The DAY CARE has an EGG for', 'you right away. Visit the', 'deliveryman on the 2nd floor', 'of a POKéMON CENTER.'],
-      footer: FOOTER,
-    },
-    script: (game) => ({
-      body: [
-        ...checkflag(game.flags.pendingDaycareEgg), ...vgotoIf(EQ, 'waiting'),
-        ...native('daycare_egg'),
-        ...compareVarToValue(VAR_RESULT, 0), ...vgotoIf(EQ, 'no_pair'),
-        ...say('ready_text'),
-        { define: 'waiting' },
-        ...say('waiting_text'),
-        { define: 'no_pair' },
-        ...say('no_pair_text'),
-      ],
-      texts: {
-        ready_text: 'The DAY CARE has an EGG\nready for you now!',
-        waiting_text: 'The DAY CARE already has an\nEGG waiting for you!',
-        no_pair_text: 'Leave two POKéMON that get\nalong at the DAY CARE first!',
-      },
-    }),
   },
   {
     id: 'custom-rival-name',
@@ -1047,8 +1185,8 @@ const CARDS = [
     card: {
       flagId: 1040, idNumber: 40, iconSpecies: 235, bgType: 5,
       title: 'MOVE RELEARNER & DELETER',
-      subtitle: 'Remember or forget, free',
-      body: ['Teach a POKéMON a move it', 'forgot, or make it forget one.', 'Visit the deliveryman on 2F', 'of a POKéMON CENTER.'],
+      subtitle: 'And the tutors teach again',
+      body: ['Relearn a move, forget one,', 'or let the move tutors teach', 'again. Visit the deliveryman', 'on 2F of a POKéMON CENTER.'],
       footer: FOOTER,
     },
     // The game's own relearner and deleter; both return to the field.
@@ -1068,7 +1206,7 @@ const CARDS = [
         ...closemessage(), ...release(), ...end(),
         { define: 'forget' },
         ...vmessage('forget_text'), ...waitmessage(), ...yesnobox(),
-        ...compareVarToValue(VAR_RESULT, 0), ...vgotoIf(EQ, 'declined'),
+        ...compareVarToValue(VAR_RESULT, 0), ...vgotoIf(EQ, 'tutors'),
         ...vmessage('which_text'), ...waitmessage(), ...waitbuttonpress(),
         ...special(game.specials.choosePartyMon), ...waitstate(),
         ...compareVarToValue(VAR_0x8004, PARTY_SIZE), ...vgotoIf(GE, 'done'),
@@ -1098,6 +1236,11 @@ const CARDS = [
         { define: 'one_move' },
         ...say('one_move_text'),
         ...(game.specials.isLastMonThatKnowsSurf ? [{ define: 'surf' }, ...say('surf_text')] : []),
+        { define: 'tutors' },
+        ...vmessage('tutors_text'), ...waitmessage(), ...yesnobox(),
+        ...compareVarToValue(VAR_RESULT, 0), ...vgotoIf(EQ, 'declined'),
+        ...game.flags.tutors.flatMap(clearflag),
+        ...say('tutored_text'),
         { define: 'declined' },
         ...say('declined_text'),
       ],
@@ -1112,6 +1255,8 @@ const CARDS = [
         no_moves_text: 'There’s no move for it to\nremember.',
         one_move_text: '{STR_VAR_1} knows only one\nmove!',
         ...(game.specials.isLastMonThatKnowsSurf && { surf_text: 'It’s the only POKéMON of yours\nthat knows SURF!' }),
+        tutors_text: 'Or shall I let the move tutors\nteach their moves again?',
+        tutored_text: 'Done! Every move tutor will\nteach again.',
         declined_text: 'Come back any time!',
       },
     }),
@@ -1217,14 +1362,14 @@ const CARDS = [
     },
   },
   {
-    id: 'custom-fly-anywhere',
+    id: 'custom-travel-anywhere',
     source: 'fly.s',
     symbols: { STATE: HOOK_STATE },
     card: {
       flagId: 1044, idNumber: 44, iconSpecies: 18, bgType: 1,
-      title: 'FLY ANYWHERE',
-      subtitle: 'Press R to FLY',
-      body: ['Press R outdoors to FLY to a', 'town you’ve visited, no HM', 'needed. Visit the deliveryman', 'on 2F of a POKéMON CENTER.'],
+      title: 'TRAVEL ANYWHERE',
+      subtitle: 'FLY with R, BIKE indoors',
+      body: ['Press R outdoors to FLY, no', 'HM needed, and run and BIKE', 'anywhere. Visit the deliveryman', 'on 2F of a POKéMON CENTER.'],
       footer: FOOTER,
     },
     script: {
@@ -1243,10 +1388,10 @@ const CARDS = [
         ...say('declined_text'),
       ],
       texts: {
-        ask_text: 'Want to FLY with the press of R,\nno HM needed?',
+        ask_text: 'Shall I let you FLY with R and\nrun and BIKE anywhere?',
         on_text: 'Done! Outdoors, press R to FLY.\nIt lasts until you reset.',
-        keep_text: 'FLY with R is on.\nKeep it on?',
-        off_text: 'R no longer opens FLY.',
+        keep_text: 'Travel anywhere is on.\nKeep it on?',
+        off_text: 'Back to normal travel!',
         declined_text: 'Come back any time!',
       },
     },
@@ -1286,31 +1431,195 @@ const CARDS = [
       },
     },
   },
-  {
-    id: 'custom-wishmkr-jirachi',
+  // Event Pokémon: EVENT picks the distribution in eventmon.s.
+  ...[
+    {
+      id: 'wishmkr-jirachi', icon: 409, bgType: 3, name: 'JIRACHI',
+      title: 'WISHMKR JIRACHI', subtitle: 'The BONUS DISC gift',
+      body: ['The wish-granting JIRACHI of', 'the COLOSSEUM BONUS DISC.', ...VISIT],
+    },
+    {
+      id: '10-aniv-celebi', icon: 251, bgType: 1, name: 'CELEBI',
+      title: '10 ANIV CELEBI', subtitle: 'The 10th Anniversary gift',
+      body: ['The CELEBI of the 2006 10th', 'Anniversary tour of America.', ...VISIT],
+    },
+    {
+      id: '10-aniv-kanto', icon: 25, bgType: 4,
+      title: 'PARTY OF THE DECADE', subtitle: 'KANTO favorites',
+      body: ['BULBASAUR, CHARIZARD,', 'BLASTOISE, PIKACHU, ALAKAZAM', 'or DRAGONITE: choose one on', '2F of a POKéMON CENTER.'],
+    },
+    {
+      id: '10-aniv-legends', icon: 144, bgType: 6,
+      title: 'PARTY OF THE DECADE', subtitle: 'Legendary POKéMON',
+      body: ['ARTICUNO, ZAPDOS, MOLTRES,', 'RAIKOU, ENTEI, SUICUNE, LATIAS', 'or LATIOS: choose one on', '2F of a POKéMON CENTER.'],
+    },
+    {
+      id: '10-aniv-johto-hoenn', icon: 196, bgType: 2,
+      title: 'PARTY OF THE DECADE', subtitle: 'JOHTO & HOENN favorites',
+      body: ['TYPHLOSION, ESPEON, UMBREON,', 'TYRANITAR, BLAZIKEN or', 'ABSOL: choose one on', '2F of a POKéMON CENTER.'],
+    },
+    {
+      id: 'doel-deoxys', icon: 410, bgType: 6, name: 'DEOXYS',
+      title: 'DOEL DEOXYS', subtitle: 'From outer space',
+      body: ['The DEOXYS of the DOEL', 'distribution, ready to obey.', ...VISIT],
+    },
+    {
+      id: 'space-c-deoxys', icon: 410, bgType: 5, name: 'DEOXYS',
+      title: 'SPACE C DEOXYS', subtitle: 'From outer space',
+      body: ['The DEOXYS of the SPACE C', 'distribution, ready to obey.', ...VISIT],
+    },
+    {
+      id: 'aura-mew', icon: 151, bgType: 3, name: 'MEW',
+      title: 'AURA MEW', subtitle: 'The Aura gift',
+      body: ['The MEW of the Aura', 'distribution, ready to obey.', ...VISIT],
+    },
+    {
+      id: 'mystry-mew', icon: 151, bgType: 1, name: 'MEW',
+      title: 'MYSTRY MEW', subtitle: 'The MYSTRY gift',
+      body: ['The MEW of the MYSTRY', 'distribution, ready to obey.', ...VISIT],
+    },
+    {
+      id: 'rocks-metang', icon: 399, bgType: 5, name: 'METANG',
+      title: 'ROCKS METANG', subtitle: 'With the National Ribbon',
+      body: ['The METANG of the ROCKS', 'distribution, with its ribbon.', ...VISIT],
+    },
+  ].map(({ id, icon, bgType, name, title, subtitle, body }, i) => ({
+    id: `custom-${id}`,
     source: 'eventmon.s',
-    symbols: { JIRACHI: 1 },
+    symbols: { EVENT: i + 1 },
     card: {
-      flagId: 1046, idNumber: 46, iconSpecies: 409, bgType: 3,
-      title: 'WISHMKR JIRACHI',
-      subtitle: 'The BONUS DISC gift',
-      body: ['The wish-granting JIRACHI of', 'the COLOSSEUM BONUS DISC.', 'Visit the deliveryman on 2F', 'of a POKéMON CENTER.'],
+      flagId: 1046 + i, idNumber: 46 + i, iconSpecies: icon, bgType,
+      title,
+      subtitle,
+      body,
       footer: FOOTER,
     },
-    script: (game) => eventMonScript(game, 'JIRACHI'),
+    script: (game) => (name ? eventMonScript(game, name) : eventMonScript(game, null, {
+      choose: offerMon,
+      texts: { offer_text: 'Would you like {STR_VAR_1}?' },
+    })),
+  })),
+  {
+    id: 'custom-feebas-finder',
+    source: 'feebas.s',
+    roms: ['BPEE 1.0'],
+    symbols: { STATE: HOOK_STATE },
+    card: {
+      flagId: 1059, idNumber: 59, iconSpecies: 328, bgType: 3,
+      title: 'FEEBAS FINDER',
+      subtitle: 'Fish anywhere on ROUTE 119',
+      body: ['FEEBAS bites wherever you fish', 'on ROUTE 119. Visit the', 'deliveryman on the 2nd floor', 'of a POKéMON CENTER.'],
+      footer: FOOTER,
+    },
+    script: {
+      body: [
+        ...compareAddrToValue(HOOK_STATE, 1), ...vgotoIf(EQ, 'active'),
+        ...vmessage('ask_text'), ...waitmessage(), ...yesnobox(),
+        ...compareVarToValue(VAR_RESULT, 0), ...vgotoIf(EQ, 'declined'),
+        ...native('install'),
+        ...say('on_text'),
+        { define: 'active' },
+        ...vmessage('keep_text'), ...waitmessage(), ...yesnobox(),
+        ...compareVarToValue(VAR_RESULT, 1), ...vgotoIf(EQ, 'declined'),
+        ...native('uninstall'),
+        ...say('off_text'),
+        { define: 'declined' },
+        ...say('declined_text'),
+      ],
+      texts: {
+        ask_text: 'Shall I bring FEEBAS to every\nfishing spot on ROUTE 119?',
+        on_text: 'Done! Cast a rod anywhere on\nROUTE 119. It lasts until you reset.',
+        keep_text: 'The FEEBAS FINDER is on.\nKeep it on?',
+        off_text: 'FEEBAS is back in its six\nhidden spots.',
+        declined_text: 'Come back any time!',
+      },
+    },
   },
   {
-    id: 'custom-10-aniv-celebi',
-    source: 'eventmon.s',
-    symbols: { JIRACHI: 0 },
+    id: 'custom-starter-egg',
+    source: 'starter.s',
     card: {
-      flagId: 1047, idNumber: 47, iconSpecies: 251, bgType: 1,
-      title: '10 ANIV CELEBI',
-      subtitle: 'The 10th Anniversary gift',
-      body: ['The CELEBI of the 2006 10th', 'Anniversary tour of America.', 'Visit the deliveryman on 2F', 'of a POKéMON CENTER.'],
+      flagId: 1060, idNumber: 60, iconSpecies: 412, bgType: 4,
+      title: 'STARTER EGG',
+      subtitle: 'Which one will hatch?',
+      body: ['An EGG with one of the nine', 'first partners inside. Visit', 'the deliveryman on the 2nd', 'floor of a POKéMON CENTER.'],
       footer: FOOTER,
     },
-    script: (game) => eventMonScript(game, 'CELEBI'),
+    script: (game) => ({
+      body: [
+        ...checkflag(game.flags.mysteryGiftDone), ...vgotoIf(EQ, 'already'),
+        ...native('pick_starter'),
+        ...giveegg(VAR_0x8004),
+        ...compareVarToValue(VAR_RESULT, MON_CANT_GIVE), ...vgotoIf(EQ, 'full'),
+        ...setflag(game.flags.mysteryGiftDone),
+        ...playfanfare(game.songs.giftMon), ...vmessage('received_text'), ...waitmessage(), ...waitfanfare(),
+        ...waitbuttonpress(),
+        ...compareVarToValue(VAR_RESULT, MON_GIVEN_TO_PC), ...vgotoIf(EQ, 'pc'),
+        ...closemessage(), ...release(), ...end(),
+        { define: 'pc' },
+        ...say('pc_text'),
+        { define: 'already' },
+        ...say('already_text'),
+        { define: 'full' },
+        ...say('full_text'),
+      ],
+      texts: {
+        received_text: '{PLAYER} received an EGG!',
+        pc_text: 'It was sent to the PC.',
+        already_text: 'Receive the card again for\nanother EGG!',
+        full_text: 'Your party and the PC are full!',
+      },
+    }),
+  },
+  {
+    id: 'custom-gift-box',
+    card: {
+      flagId: 1061, idNumber: 61, iconSpecies: 113, bgType: 2,
+      title: 'GIFT BOX',
+      subtitle: 'Money, candy and more',
+      body: ['¥100,000, 99 RARE CANDIES and', 'COINS or BATTLE POINTS. Visit', 'the deliveryman on the 2nd', 'floor of a POKéMON CENTER.'],
+      footer: FOOTER,
+    },
+    // Once per card. RARE CANDIES need room in the bag, COINS a COIN CASE;
+    // BATTLE POINTS are Emerald's (up to 9,999).
+    script: (game) => ({
+      body: [
+        ...checkflag(game.flags.mysteryGiftDone), ...vgotoIf(EQ, 'already'),
+        ...setflag(game.flags.mysteryGiftDone),
+        ...addmoney(100000),
+        ...playfanfare(game.songs.giftMon), ...vmessage('money_text'), ...waitmessage(), ...waitfanfare(),
+        ...waitbuttonpress(),
+        ...checkitemspace(ITEM_RARE_CANDY, 99),
+        ...compareVarToValue(VAR_RESULT, 0), ...vgotoIf(EQ, 'no_room'),
+        ...additem(ITEM_RARE_CANDY, 99),
+        ...vmessage('candy_text'), ...waitmessage(), ...waitbuttonpress(),
+        { define: 'coins' },
+        ...checkitem(ITEM_COIN_CASE),
+        ...compareVarToValue(VAR_RESULT, 0), ...vgotoIf(EQ, 'points'),
+        ...addcoins(1000),
+        ...compareVarToValue(VAR_RESULT, 0), ...vgotoIf(NE, 'points'),
+        ...vmessage('coins_text'), ...waitmessage(), ...waitbuttonpress(),
+        { define: 'points' },
+        ...(game.specials.giveFrontierBattlePoints ? [
+          ...setvar(VAR_0x8004, 100), ...special(game.specials.giveFrontierBattlePoints),
+          ...vmessage('points_text'), ...waitmessage(), ...waitbuttonpress(),
+        ] : []),
+        ...closemessage(), ...release(), ...end(),
+        { define: 'no_room' },
+        ...vmessage('no_room_text'), ...waitmessage(), ...waitbuttonpress(),
+        ...vgoto('coins'),
+        { define: 'already' },
+        ...say('already_text'),
+      ],
+      texts: {
+        money_text: '{PLAYER} received ¥100,000!',
+        candy_text: '{PLAYER} received 99 RARE\nCANDIES!',
+        no_room_text: 'There’s no room in your bag\nfor 99 RARE CANDIES!',
+        coins_text: '{PLAYER} received 1,000 COINS!',
+        ...(game.specials.giveFrontierBattlePoints && { points_text: '{PLAYER} received 100\nBATTLE POINTS!' }),
+        already_text: 'Receive the card again for\nanother GIFT BOX!',
+      },
+    }),
   },
   { id: 'custom-master-ball', fixed: true },
 ];
@@ -1355,7 +1664,7 @@ function assemble(source, symbols, dir, data = null) {
   if (data) {
     const include = Object.entries(data.strings).map(([label, text]) =>
       `    .align 2\n${label}:\n    .byte ${encodeText(text, data.tokens).join(', ')}\n`);
-    writeFileSync(join(dir, 'data.inc'), include.join(''));
+    writeFileSync(join(dir, 'data.inc'), `${include.join('')}    .align 2\n`);
   }
   const defsyms = Object.entries(symbols).flatMap(([key, value]) => ['--defsym', `${key}=${value}`]);
   execFileSync('arm-none-eabi-as', ['-mcpu=arm7tdmi', '-mthumb', '-I', HERE, '-I', dir, ...defsyms,

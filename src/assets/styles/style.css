@@ -267,7 +267,7 @@ body[data-phase='complete'] .title-bar {
 .instruction-label { margin-bottom: 0; }
 
 #instruction-text,
-#unlock-text,
+.unlock-text,
 #description-text {
   color: var(--ink);
   line-height: 1.5;
@@ -305,7 +305,7 @@ body[data-phase='complete'] .title-bar {
   outline-offset: 2px;
 }
 
-.unlock-box #unlock-text {
+.unlock-box .unlock-text {
   display: block;
   margin-top: 0.3rem;
 }

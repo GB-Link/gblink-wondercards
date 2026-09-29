@@ -64,6 +64,7 @@ const SYMBOLS = {
   SPECIES_INFO: ['gSpeciesInfo'],
   ABILITY_NAMES: ['gAbilityNames'],
   ROAMER_LOCATIONS: ['sRoamerLocations'],
+  SPECIES_NAMES: ['gSpeciesNames'],
   // routines
   VBLANK_INTR: ['VBlankIntr', 0, 'fn'],
   RUN_TEXT_PRINTERS: ['RunTextPrinters', 0, 'fn'],
@@ -95,6 +96,8 @@ const SYMBOLS = {
   CREATE_MON: ['CreateMon', 0, 'fn'],
   SET_MON_MOVE_SLOT: ['SetMonMoveSlot', 0, 'fn'],
   RANDOM: ['Random', 0, 'fn'],
+  DO_NAMING_SCREEN: ['DoNamingScreen', 0, 'fn'],
+  CB2_RETURN_TO_SCRIPT: ['CB2_ReturnToFieldContinueScriptPlayMapMusic', 0, 'fn'],
   SEND_MON_TO_PC: { emerald: ['CopyMonToPC', 0, 'fn'], frlg: ['SendMonToPC', 0, 'fn'] },
   GET_SET_POKEDEX_FLAG: ['GetSetPokedexFlag', 0, 'fn'],
   ROAMER_MOVE: ['RoamerMoveToOtherLocationSet', 0, 'fn'],
@@ -115,6 +118,11 @@ const SYMBOLS = {
   LEARNED_MOVE_STEP: ['Task_DoLearnedMoveFanfareAfterText', 0, 'fn'],
   ADD_BAG_ITEM: ['AddBagItem', 0, 'fn'],
   CB2_USE_ITEM: { frlg: ['CB2_UseItem', 0, 'fn'] },
+  CREATE_WILD_MON: { emerald: ['CreateWildMon', 0, 'fn'] },
+  TASK_FISHING: ['Task_Fishing', 0, 'fn'],
+  DESTROY_TASK: ['DestroyTask', 0, 'fn'],
+  FRONT_OF_PLAYER: ['GetXYCoordsOneStepInFrontOfPlayer', 0, 'fn'],
+  FEEBAS_SPOT: { emerald: ['GetFeebasFishingSpotId', 0, 'fn'] },
   CB2_USE_TM_AFTER_FORGETTING: { frlg: ['CB2_UseTMHMAfterForgettingMove', 0, 'fn'] },
   // the multichoice box (menu.inc)
   CREATE_WINDOW_FROM_RECT: ['CreateWindowFromRect', 0, 'fn'],

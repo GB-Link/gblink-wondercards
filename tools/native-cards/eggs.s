@@ -1,13 +1,19 @@
-@ Instant Egg Hatch. The script hatches one Egg at a time with the game's
-@ EggHatch special, which reads the party slot from gSpecialVar_0x8004.
+@ Instant Eggs. The script hatches one Egg at a time with the game's EggHatch
+@ special, which reads the party slot from gSpecialVar_0x8004, or has the Day
+@ Care's Egg ready at once.
 @
 @ `prepare` counts the party's Eggs into VAR_RESULT and resets the search.
 @ `next_egg` finds the next Egg after gSpecialVar_0x8004, stores its slot there
 @ and sets VAR_RESULT to 1, or to 0 when there are no more.
 @
+@ `daycare_egg` has the game's TriggerPendingDaycareEgg make the Day Care's
+@ Egg ready now when its two Pokémon can have one (GetDaycareCompatibilityScore
+@ above 0). VAR_RESULT = 1 when it did, else 0.
+@
 @ Parameters (--defsym): PARTY (&gPlayerParty), SPECIAL_VAR_8004
-@ (&gSpecialVar_0x8004), SPECIAL_VAR_RESULT (&gSpecialVar_Result) and those
-@ of relocate.inc.
+@ (&gSpecialVar_0x8004), SPECIAL_VAR_RESULT (&gSpecialVar_Result), SB1_PTR,
+@ DAYCARE (its offset in SaveBlock1), DAYCARE_COMPATIBILITY,
+@ TRIGGER_DAYCARE_EGG and those of relocate.inc.
 
     .syntax unified
     .thumb
@@ -63,10 +69,34 @@ next_egg:
     strh r0, [r1]
     bx lr
 
+daycare_egg:
+    push {lr}
+    ldr r0, p_sb1_ptr
+    ldr r0, [r0]
+    ldr r1, p_daycare
+    adds r0, r0, r1
+    ldr r3, p_compatibility
+    bl call_r3
+    cmp r0, #0
+    beq 1f
+    ldr r3, p_trigger_egg
+    bl call_r3
+    movs r0, #1
+1:  ldr r1, p_var_result
+    strh r0, [r1]
+    pop {pc}
+
+call_r3:
+    bx r3
+
     .align 2
-p_party:      .word PARTY
-p_var_8004:   .word SPECIAL_VAR_8004
-p_var_result: .word SPECIAL_VAR_RESULT
+p_party:         .word PARTY
+p_var_8004:      .word SPECIAL_VAR_8004
+p_var_result:    .word SPECIAL_VAR_RESULT
+p_sb1_ptr:       .word SB1_PTR
+p_daycare:       .word DAYCARE
+p_compatibility: .word DAYCARE_COMPATIBILITY
+p_trigger_egg:   .word TRIGGER_DAYCARE_EGG
 
     .include "mons.inc"
     .include "relocate.inc"
