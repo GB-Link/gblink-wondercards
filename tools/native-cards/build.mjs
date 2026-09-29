@@ -38,6 +38,10 @@ const CONTEXT_DATA = 0x64;
 const ROM_GAME = 0x080000ae;        // the third letter of the game code: E, R or G
 const ROM_LANGUAGE = 0x080000af;
 const ROM_REVISION = 0x080000bc;
+const VAR_TEMP_1 = 0x4001;
+const VAR_TEMP_2 = 0x4002;
+const VAR_TEMP_3 = 0x4003;
+const VAR_TEMP_4 = 0x4004;
 const VAR_0x8004 = 0x8004;
 const VAR_0x8005 = 0x8005;
 const VAR_0x8006 = 0x8006;
@@ -78,15 +82,17 @@ const FAMILIES = {
       choosePartyMon: 0x9f, eggHatch: 0xc2, changePokemonNickname: 0x9e, getPartyMonSpecies: 0x147,
       enableNationalPokedex: 0x16f, chooseMonForMoveRelearner: 0xdb, teachMoveRelearnerMove: 0xe0,
       isSelectedMonEgg: 0x148, getNumMovesSelectedMonHas: 0xdf, chooseMoveToForget: 0xdc, moveDeleterForgetMove: 0xdd,
-      bufferMoveDeleterNicknameAndMove: 0xde,
+      bufferMoveDeleterNicknameAndMove: 0xde, slotMachineId: 0x11e,      // GetRandomSlotMachineId
     },
     flags: {
       pokedex: 0x829, nationalDex: 0x840, ribbons: 0x83b, mysteryGiftDone: 0x3d8, pendingDaycareEgg: 0x266,
+      gotCoinCase: 0x243,
       // FLAG_TUTOR_DOUBLE_EDGE to FLAG_TUTOR_BODY_SLAM, then the three ultimate moves
       tutors: [...range(0x2c0, 0x2ce), ...range(0x2de, 0x2e0)],
     },
     vars: { repelSteps: 0x4020 },
-    songs: { giftMon: 257 },            // MUS_LEVEL_UP, which FireRed/LeafGreen play for a gift Pokémon
+    // MUS_LEVEL_UP, which FireRed/LeafGreen play for a gift Pokémon; MUS_GAME_CORNER
+    songs: { giftMon: 257, gameCorner: 273 },
   },
   emerald: {
     scriptInSaveBlock1: 0x3730,
@@ -96,13 +102,15 @@ const FAMILIES = {
       enableNationalPokedex: 0x1f3, chooseMonForMoveRelearner: 0xde, teachMoveRelearnerMove: 0xe3,
       isSelectedMonEgg: 0x14a, getNumMovesSelectedMonHas: 0xe2, chooseMoveToForget: 0xdf, moveDeleterForgetMove: 0xe0,
       bufferMoveDeleterNicknameAndMove: 0xe1, isLastMonThatKnowsSurf: 0x209, giveFrontierBattlePoints: 0x1ca,
+      slotMachineId: 0x120, playRoulette: 0xa5,     // GetSlotMachineId, PlayRoulette
     },
     flags: {
       pokedex: 0x861, nationalDex: 0x896, ribbons: 0x89b, mysteryGiftDone: 0x1e4, pendingDaycareEgg: 0x86,
       tutors: range(0x1b1, 0x1ba),      // FLAG_MOVE_TUTOR_TAUGHT_SWAGGER to _EXPLOSION
     },
     vars: { mirageHigh: 0x4024, repelSteps: 0x4021 },
-    songs: { giftMon: 370 },            // MUS_OBTAIN_ITEM, which Emerald plays for one
+    // MUS_OBTAIN_ITEM, which Emerald plays for one; MUS_GAME_CORNER
+    songs: { giftMon: 370, gameCorner: 426 },
   },
 };
 
@@ -145,6 +153,7 @@ const setflag = (flag) => [0x29, ...u16(flag)];
 const clearflag = (flag) => [0x2a, ...u16(flag)];
 const checkflag = (flag) => [0x2b, ...u16(flag)];
 const additem = (item, quantity = 1) => [0x44, ...u16(item), ...u16(quantity)];
+const removeitem = (item, quantity = 1) => [0x45, ...u16(item), ...u16(quantity)];
 const checkitemspace = (item, quantity = 1) => [0x46, ...u16(item), ...u16(quantity)];
 const compareAddrToValue = (address, value) => [0x1f, ...u32(address),
   typeof value === 'string' ? value.charCodeAt(0) : value];
@@ -177,7 +186,10 @@ const vmessage = (label) => [0xbd, { label }];
 const giveegg = (variable) => [0x7a, ...u16(variable)];
 const addmoney = (amount) => [0x90, ...u32(amount), 0];
 const checkitem = (item, quantity = 1) => [0x47, ...u16(item), ...u16(quantity)];
+const checkcoins = (variable) => [0xb3, ...u16(variable)];
 const addcoins = (coins) => [0xb4, ...u16(coins)];
+const playbgm = (song, save = 0) => [0x33, ...u16(song), save];
+const playslotmachine = (variable) => [0x89, ...u16(variable)];
 const playfanfare = (song) => [0x31, ...u16(song)];
 const waitfanfare = () => [0x32];
 const say = (label) => [...vmessage(label), ...waitmessage(), ...waitbuttonpress(), ...closemessage(),
@@ -330,6 +342,71 @@ const eventMonScript = (game, name, { choose = [], texts = {} } = {}) => ({
 });
 
 const VISIT = ['Visit the deliveryman on 2F', 'of a POKéMON CENTER.'];
+
+// RAF's Pocket Casino, as he wrote it: lends a COIN CASE for the game when there
+// is none (FireRed/LeafGreen also set FLAG_GOT_COIN_CASE while it is lent; with
+// no room for it, Emerald stops there and FireRed/LeafGreen play anyway), gives
+// 100 COINS below 3, then runs `play`, which starts the game. The game returns
+// to the overworld, which moves SaveBlock1 and this script in it, so `play`
+// moves the script first.
+const casinoScript = (game, { play, playText }) => {
+  const frlg = game.family === 'frlg';
+  return {
+    body: [
+      ...setvar(VAR_TEMP_1, 0),
+      ...(frlg ? [
+        ...setvar(VAR_TEMP_4, 0),
+        ...checkflag(game.flags.gotCoinCase), ...vgotoIf(EQ, 'case'),
+        ...setflag(game.flags.gotCoinCase), ...setvar(VAR_TEMP_4, 1),
+        { define: 'case' },
+      ] : []),
+      ...checkitem(ITEM_COIN_CASE),
+      ...compareVarToValue(VAR_RESULT, 0), ...vgotoIf(NE, 'coins'),
+      ...checkitemspace(ITEM_COIN_CASE),
+      ...compareVarToValue(VAR_RESULT, 0), ...vgotoIf(EQ, frlg ? 'coins' : 'full'),
+      ...additem(ITEM_COIN_CASE), ...setvar(VAR_TEMP_1, 1),
+      { define: 'coins' },
+      ...setvar(VAR_TEMP_3, 0),
+      ...checkcoins(VAR_TEMP_2),
+      ...compareVarToValue(VAR_TEMP_2, 3), ...vgotoIf(GE, 'greet'),
+      ...addcoins(100), ...setvar(VAR_TEMP_3, 1),
+      { define: 'greet' },
+      ...compareVarToValue(VAR_TEMP_1, 1), ...vgotoIf(EQ, 'lent'),
+      ...compareVarToValue(VAR_TEMP_3, 1), ...vgotoIf(EQ, 'given'),
+      ...vmessage('play_text'), ...vgoto('play'),
+      { define: 'lent' },
+      ...compareVarToValue(VAR_TEMP_3, 1), ...vgotoIf(EQ, 'lent_given'),
+      ...vmessage('lent_text'), ...vgoto('play'),
+      { define: 'lent_given' },
+      ...vmessage('lent_given_text'), ...vgoto('play'),
+      { define: 'given' },
+      ...vmessage('given_text'),
+      { define: 'play' },
+      ...waitmessage(), ...waitbuttonpress(), ...closemessage(),
+      ...playbgm(game.songs.gameCorner),
+      ...play,
+      ...(frlg ? [
+        ...compareVarToValue(VAR_TEMP_4, 1), ...vgotoIf(NE, 'flag_kept'),
+        ...clearflag(game.flags.gotCoinCase),
+        { define: 'flag_kept' },
+      ] : []),
+      ...compareVarToValue(VAR_TEMP_1, 1), ...vgotoIf(NE, 'done'),
+      ...removeitem(ITEM_COIN_CASE),
+      ...vmessage('return_text'), ...waitmessage(), ...waitbuttonpress(), ...closemessage(),
+      { define: 'done' },
+      ...release(), ...end(),
+      ...(frlg ? [] : [{ define: 'full' }, ...say('full_text')]),
+    ],
+    texts: {
+      lent_given_text: 'A COIN CASE and 100 COINS,\njust for this game.',
+      lent_text: 'You can borrow a COIN CASE,\njust for this game.',
+      given_text: 'Here are 100 COINS to play.',
+      play_text: playText,
+      return_text: 'I will take the COIN CASE back.\nYour COINS stay with you.',
+      ...(frlg ? {} : { full_text: 'Your BAG is full.' }),
+    },
+  };
+};
 
 // Offers the card's Pokémon in turn (offer), their names in STR_VAR_1, until
 // one is taken: VAR_0x8004.
@@ -1660,6 +1737,28 @@ const CARDS = [
     }),
   },
   { id: 'custom-master-ball', fixed: true },
+  {
+    id: 'custom-pocket-casino',
+    source: 'casino.s',
+    script: (game) => casinoScript(game, {
+      play: [
+        ...(game.family === 'emerald' ? setvar(VAR_0x8004, 0) : []),
+        ...specialvar(VAR_RESULT, game.specials.slotMachineId),
+        ...relocate(),
+        ...playslotmachine(VAR_RESULT),
+      ],
+      playText: 'Heh heh, looks like someone\nwants to play some slots.',
+    }),
+  },
+  {
+    id: 'custom-pocket-casino-roulette',
+    roms: ['BPEE 1.0'],
+    source: 'casino.s',
+    script: (game) => casinoScript(game, {
+      play: [...setvar(VAR_0x8004, 0), ...relocate(), ...special(game.specials.playRoulette), ...waitstate()],
+      playText: 'Heh heh, looks like someone\nwants to play roulette.',
+    }),
+  },
 ];
 
 // struct WonderCard text: title, subtitle, four body lines and two footer
