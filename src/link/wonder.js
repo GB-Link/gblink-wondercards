@@ -9,11 +9,12 @@ import {
   PAYLOAD_SCRIPT_OFFSET,
   WONDER_CARD_BYTES,
   WonderCardServer,
+  gameOfCode,
   romId,
 } from './mystery-gift.js';
 
-// Frames between the GBA's first linked frame and our player ids, so its
-// player exchange task has reset its receive state.
+// Frames to wait after the GBA's first linked frame before sending player ids,
+// so its player exchange task has reset its receive state.
 const LINK_SETTLE_TICKS = 10;
 // A GBA that is busy sending drops a block request; ask again after this long.
 const REQUEST_RETRY_TICKS = 90;
@@ -97,28 +98,27 @@ export function readLinkPlayer(block) {
   };
 }
 
-export function eventCard(event) {
-  return event.payloadBytes.subarray(0, WONDER_CARD_BYTES);
+// Every payload an event holds for a GBA reporting `game`, as { card, script }:
+// the event's one payload, or its list for that ROM or game when it has them
+// (event.variants, keyed by ROM id like 'BPRE 1.1' or by game). Empty when
+// nothing of it runs there, or when the event lists the ROMs it runs on
+// (event.roms) and this is not one of them.
+export function eventPayloads(event, game) {
+  if (event.roms && !(game && event.roms.includes(romId(game)))) return [];
+  const all = event.variants
+    ? (game && (event.variants[romId(game)] ?? event.variants[gameOfCode(game.gameCode)])) ?? []
+    : [event.payloadBytes];
+  return all.map((bytes) => ({
+    card: bytes.subarray(0, WONDER_CARD_BYTES),
+    script: bytes.subarray(PAYLOAD_SCRIPT_OFFSET),
+  }));
 }
 
-// The RAM script for the ROM a GBA reports (game), or null when the card
-// cannot run there. A script that calls game routines by address carries a
-// table of them per ROM (event.hook): its literal pool, 4-byte aligned in the
-// script as in the save block, is rewritten for the GBA's ROM.
-export function eventScript(event, game) {
-  const script = event.payloadBytes.subarray(PAYLOAD_SCRIPT_OFFSET);
-  const hook = event.hook;
-  if (!hook) return script;
-  const target = game && hook.routines[romId(game)];
-  if (!target) return null;
-  const built = hook.routines[hook.builtFor];
-  const out = script.slice();
-  const view = new DataView(out.buffer);
-  for (let i = 0; i + 4 <= out.length; i += 4) {
-    const routine = built.indexOf(view.getUint32(i, true));
-    if (routine >= 0) view.setUint32(i, target[routine], true);
-  }
-  return out;
+// The payload to send: one of them at random, as the egg cartridges pick a
+// species for each delivery. Null when there is none.
+export function eventPayload(event, game, random = Math.random) {
+  const payloads = eventPayloads(event, game);
+  return payloads.length ? payloads[Math.floor(random() * payloads.length)] : null;
 }
 
 export class WonderSession {
@@ -274,7 +274,7 @@ export class WonderSession {
     if (!link) return;
     const op = words[0] & 0xff00;
     if (op === CMD.READY_EXIT_STANDBY && link.player) {
-      // Answered every time: the GBA asks again only if our answer was lost.
+      // Answered every time: the GBA only asks again if the answer was lost.
       this.distributor.standby(words[1]);
       link.readyCount = (words[1] + 1) & 0xffff;
       if (!link.server) this.startServer();
@@ -285,8 +285,7 @@ export class WonderSession {
     const link = this.link;
     const server = new WonderCardServer({
       link: this.distributor,
-      card: eventCard(link.event),
-      script: (game) => eventScript(link.event, game),
+      payload: (game) => eventPayload(link.event, game),
       game: link.event.game,
       confirm: (reasons, game) => this.ask(reasons, game),
       log: this.log,

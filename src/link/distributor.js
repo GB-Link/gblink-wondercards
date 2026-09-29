@@ -1,10 +1,9 @@
-// The distribution machine as the GBA's wireless adapter sees it: a librfu
-// parent with one child in slot 0, speaking through GB-Link wireless mode.
+// A librfu parent with one child in slot 0, run through GB-Link wireless mode.
 //
 // Parent frames start with a 3-byte header (size 0-6, phase 9-10, n 11-12,
 // ack 13, state 14-17, slot bitmap 18-21); once linked they carry five 14-byte
-// command slots, slot 0 our own command and slot 1 the child's last command
-// echoed back once. Child frames start with a 2-byte header (size 0-4,
+// command slots: slot 0 is the parent's command, slot 1 echoes the child's last
+// command once. Child frames start with a 2-byte header (size 0-4,
 // phase 5-6, n 7-8, ack 9, state 10-13) and carry one slot.
 
 import {
@@ -326,9 +325,9 @@ export class Distributor {
     this.command([CMD.READY_CLOSE_LINK, count, 0, 0, 0, 0, 0]);
   }
 
-  // The parent's block: its INIT on four frames, then one fragment a frame,
-  // never resent. The child only reads a new INIT once it has taken the
-  // previous block, which the four INIT frames give it time to do.
+  // Sends a block: its INIT on four frames, then one fragment per frame, never
+  // resent. The four INIT frames give the child time to finish the previous
+  // block.
   sendBlock(data) {
     const count = Math.max(1, Math.ceil(data.length / FRAGMENT_BYTES));
     for (let i = 0; i < 4; i++) this.command([CMD.SEND_BLOCK_INIT, count, 0x80, 0, 0, 0, 0]);

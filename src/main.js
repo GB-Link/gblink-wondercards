@@ -4,8 +4,10 @@ import { describeGameCode, describeRom } from './link/mystery-gift.js';
 import {
   EVENT_GROUPS,
   EVENT_PRESETS,
+  eventGames,
   eventOptionLabel,
   findPreset,
+  gamesPhrase,
 } from './events/index.js';
 
 const LAUNCHER_URL = 'https://launcher.gblink.io';
@@ -16,6 +18,7 @@ const statusIndicator = document.getElementById('status-indicator');
 const instructionBox = document.getElementById('instruction-box');
 const instructionLabel = document.getElementById('instruction-label');
 const instructionText = document.getElementById('instruction-text');
+const descriptionText = document.getElementById('description-text');
 const stepper = document.getElementById('stepper');
 const connectBtn = document.getElementById('connect-btn');
 const disconnectBtn = document.getElementById('disconnect-btn');
@@ -59,21 +62,9 @@ const PHASE_CONFIG = {
   },
 };
 
-function gameName(event = currentEvent) {
-  return event?.game === 'frlg' ? 'FireRed or LeafGreen' : 'Emerald';
-}
-
-// "FireRed (English) and LeafGreen (English)": the games whose ROMs a card's
-// hook table lists.
-function hookGames(event) {
-  const names = [...new Set(Object.keys(event.hook.routines).map((rom) => describeGameCode(rom.slice(0, 4))))];
-  return names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names.at(-1)}` : names[0];
-}
-
+// Mystery Gift is on the main menu in every game; name the ones the event runs on.
 function whereToOpen(event = currentEvent) {
-  return event?.game === 'frlg'
-    ? 'On FireRed or LeafGreen, choose Mystery Gift on the title screen, then Wireless Communication.'
-    : 'On Emerald, choose Mystery Gift on the main menu, then Wireless Communication.';
+  return `On ${gamesPhrase(eventGames(event))}, choose Mystery Gift on the main menu, then Wireless Communication.`;
 }
 
 function log(message) {
@@ -213,7 +204,7 @@ distribution.onDecision = (request) => {
     decisionTitle.textContent = 'This Game Boy Advance already has this Wonder Card, or one for the same event.';
     lines.push('Send it again to replace the card on the Game Boy Advance with this one.');
   } else {
-    decisionTitle.textContent = `This card is for ${gameName(event)}.`;
+    decisionTitle.textContent = `This card is for ${gamesPhrase(eventGames(event))}.`;
   }
   if (reasons.includes('other-game')) {
     lines.push(`The Game Boy Advance is running ${connected}. The card may not work there.`);
@@ -269,7 +260,7 @@ distribution.onResult = (result) => {
       log('The Game Boy Advance could not accept a Wonder Card');
       break;
     case 'unsupported': {
-      const detail = `${name} only runs on ${hookGames(result.event ?? currentEvent)}. `
+      const detail = `${name} only runs on ${gamesPhrase(eventGames(result.event ?? currentEvent))}. `
         + `The Game Boy Advance is running ${describeRom(result.game)}.`;
       applyPhase('ready', { status: 'Not sent: this card does not run on this game.', instruction: next });
       showResult(false, 'Not sent', detail);
@@ -319,6 +310,7 @@ function applyEventSelection(id) {
   if (!preset) return null;
   eventSelect.value = preset.id;
   currentEvent = preset;
+  descriptionText.textContent = preset.description;
   return preset;
 }
 

@@ -1,5 +1,5 @@
-// The page's side of a distribution: puts the GB-Link into wireless adapter
-// mode, clocks the WonderSession at the GBA frame rate and carries its frames.
+// Runs a distribution: switches the GB-Link to wireless adapter mode, ticks the
+// WonderSession at the GBA frame rate and passes its frames to the adapter.
 
 import { COMMAND, STATUS, openGbLink } from './gblink.js';
 import { Rfu1Reader } from './rfu1.js';
@@ -10,9 +10,9 @@ export const MIN_FIRMWARE = [2, 2, 6];
 
 const MODE_WIRELESS_ADAPTER = 0x07;
 const LINK_PACKET_BYTES = 64;
-// Adapter reports, twice a second: 0x0e carries the adapter's start-up stage
-// (2 and up: the GBA got past its adapter check), 0x1d the count of adapter
-// resets the game has made (8-bit, wrapping).
+// Adapter reports, twice a second: 0x0e is the start-up stage (2 or more once
+// the GBA passed its adapter check), 0x1d counts the game's adapter resets
+// (8-bit, wrapping).
 const REPORT_STAGE = 0x0e;
 const REPORT_EVENTS = 0x1d;
 const STAGE_READY = 2;

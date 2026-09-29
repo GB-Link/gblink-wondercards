@@ -245,19 +245,18 @@ export function cardFlagId(card) {
   return u16(card, 0);
 }
 
-// Runs one Mystery Gift exchange with a linked client, as the in-game server
-// script gMysteryGiftServerScript_SendWonderCard does, with checks of our own:
-// a card whose script cannot run on the client's ROM is refused, and the same
-// card again or a card made for the other game asks the page first.
+// Runs one Mystery Gift exchange with a linked client, following the game's
+// gMysteryGiftServerScript_SendWonderCard. It also refuses a card whose script
+// can't run on the client's ROM, and asks the page before sending the same card
+// again or a card made for the other game.
 export class WonderCardServer {
-  // link.sendBlock(bytes) queues one block for the client. script(game) gives
-  // the RAM script for the client's ROM (empty for none), or null when the
-  // card cannot run on that ROM. confirm(reasons, game) resolves true to send
-  // anyway.
-  constructor({ link, card, script, game, confirm, log = () => {} }) {
+  // link.sendBlock(bytes) queues one block for the client. payload(game) gives
+  // the { card, script } to send to the client's game (an empty script for
+  // none), or null when the event has nothing that runs there. confirm(reasons,
+  // game) resolves true to send anyway.
+  constructor({ link, payload, game, confirm, log = () => {} }) {
     this.link = link;
-    this.card = card.subarray(0, WONDER_CARD_BYTES);
-    this.script = script;
+    this.payload = payload;
     this.game = game;
     this.confirm = confirm;
     this.log = log;
@@ -312,10 +311,12 @@ export class WonderCardServer {
     const game = parseGameData(await this.receive(MG_LINK.GAME_DATA));
     this.stage('checked', game);
     if (!game.valid) return this.end('cant-accept', CLIENT_SCRIPTS.cantAccept, game);
-    const ramScript = this.script(game);
-    if (!ramScript) return this.end('unsupported', CLIENT_SCRIPTS.cantAccept, game);
+    const payload = this.payload(game);
+    if (!payload) return this.end('unsupported', CLIENT_SCRIPTS.cantAccept, game);
+    const card = payload.card.subarray(0, WONDER_CARD_BYTES);
+    const ramScript = payload.script;
 
-    const flagId = cardFlagId(this.card);
+    const flagId = cardFlagId(card);
     const sameCard = game.cardFlagId !== 0 && game.cardFlagId === flagId;
     const otherCard = game.cardFlagId !== 0 && !sameCard;
     const reasons = [];
@@ -342,11 +343,11 @@ export class WonderCardServer {
     this.stage('sending');
     if (ramScript.length) {
       this.send(MG_LINK.CLIENT_SCRIPT, CLIENT_SCRIPTS.saveCard);
-      this.send(MG_LINK.CARD, this.card);
+      this.send(MG_LINK.CARD, card);
       this.send(MG_LINK.RAM_SCRIPT, ramScript.subarray(0, RAM_SCRIPT_BYTES));
     } else {
       this.send(MG_LINK.CLIENT_SCRIPT, CLIENT_SCRIPTS.saveCardWithoutScript);
-      this.send(MG_LINK.CARD, this.card);
+      this.send(MG_LINK.CARD, card);
     }
     await this.receive(MG_LINK.READY_END);
     return { outcome: 'sent', game };

@@ -266,9 +266,48 @@ body[data-phase='complete'] .title-bar {
 
 .instruction-label { margin-bottom: 0; }
 
-#instruction-text {
+#instruction-text,
+#unlock-text,
+#description-text {
   color: var(--ink);
   line-height: 1.5;
+}
+
+.unlock-box { display: block; }
+
+.unlock-box summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  list-style: none;
+}
+
+.unlock-box summary::-webkit-details-marker { display: none; }
+
+.unlock-box summary::after {
+  content: '';
+  width: 0.4rem;
+  height: 0.4rem;
+  margin-right: 0.2rem;
+  border-right: 2px solid var(--cursor);
+  border-bottom: 2px solid var(--cursor);
+  transform: rotate(-45deg);
+  transition: transform 0.15s;
+}
+
+.unlock-box[open] summary::after { transform: rotate(45deg); }
+
+.unlock-box summary:hover { color: var(--accent-hover); }
+
+.unlock-box summary:focus-visible {
+  outline: 2px solid var(--cursor);
+  outline-offset: 2px;
+}
+
+.unlock-box #unlock-text {
+  display: block;
+  margin-top: 0.3rem;
 }
 
 .instruction-box[data-type='success'] { border-color: var(--success); }
