@@ -11,7 +11,7 @@ import {
   defaultWonderDistributorIdentity,
 } from './rfu-identity.js';
 
-export { createEventDescriptor, identityFromEvent } from './descriptor.js';
+export { createEventDescriptor, eventGames, gamesPhrase, identityFromEvent } from './descriptor.js';
 export { auroraTicket } from './aurora-ticket.js';
 export { jpajWondercardEvents } from './jpaj-events.js';
 export { jpajFrlgWondercardEvents } from './jpaj-frlg-events.js';
@@ -54,7 +54,7 @@ export const EVENT_GROUPS = [
     events: [...goppierWondercardEvents],
   },
   {
-    label: 'Custom',
+    label: 'GB-Link Team',
     events: [...customWondercardEvents],
   },
 ];

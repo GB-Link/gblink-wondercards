@@ -8,8 +8,8 @@ function decodeBase64(s) {
 export const JPAJ_FRLG_WONDERCARDS = [
   {
     id: 'frlg-altering-cave',
-    label: 'Altering Cave (FireRed/LeafGreen)',
-    blurb: 'Changes wild Pokémon in Altering Cave. Talk to the delivery person on Pokémon Center 2F, then visit the cave on Outcast Island (Six Island).',
+    label: 'Altering Cave (New Wild Pokémon) (FireRed/LeafGreen)',
+    description: 'Changes the wild Pokémon in Altering Cave on Outcast Island (Six Island), which normally holds only Zubat. Each delivery moves the cave on to the next Pokémon: Mareep, Pineco, Houndour, Teddiursa, Aipom, Shuckle, Stantler and Smeargle, then back to Zubat.',
     source: 'JPAJ - Altering Cave (FRLG).gba',
     flagId: 1004,
     iconSpecies: 179,
@@ -24,8 +24,8 @@ AMPNxrvIvq370dztAOLj6ADq3efd6ADo3Nnm2QDV4tgA19zZ198A3dr+6NzZAObp4ePm5wDV5tkA3eLY
   },
   {
     id: 'frlg-aurora-ticket',
-    label: 'Aurora Ticket (FireRed/LeafGreen)',
-    blurb: 'Birth Island ticket. Talk to the delivery person on Pokémon Center 2F, then sail from Vermilion City.',
+    label: 'Aurora Ticket (Deoxys) (FireRed/LeafGreen)',
+    description: 'Gives the Aurora Ticket. Show it at the harbor in Vermilion City to take the Seagallop to Birth Island, where Deoxys appears.',
     source: 'JPAJ - Aurora Ticket (FRLG).gba',
     flagId: 1000,
     iconSpecies: 386,
@@ -43,8 +43,8 @@ AM3t5+jZ4a3/ydy4AMO04QDn4+bm7bgA/QGtANPj6eYAvLvBtOf+xb/TAMPOv8fNAMrJvcW/zgDd5wDa
   },
   {
     id: 'frlg-mystic-ticket',
-    label: 'Mystic Ticket (FireRed/LeafGreen)',
-    blurb: 'Navel Rock ticket. Talk to the delivery person on Pokémon Center 2F, then sail from Vermilion City.',
+    label: 'Mystic Ticket (Lugia & Ho-Oh) (FireRed/LeafGreen)',
+    description: 'Gives the Mystic Ticket. Show it at the harbor in Vermilion City to take the Seagallop to Navel Rock, where Lugia and Ho-Oh appear.',
     source: 'JPAJ - Mystic Ticket (FRLG).gba',
     flagId: 1001,
     iconSpecies: 249,
@@ -62,8 +62,8 @@ zr/M0/7Bw8DOAM3t5+jZ4a3/ydy4AMO04QDn4+bm7bgA/QGtANPj6eYAvLvBtOf+xb/TAMPOv8fNAMrJ
   },
   {
     id: 'frlg-wish-egg-chansey',
-    label: 'Wish Egg Chansey (FireRed/LeafGreen)',
-    blurb: 'Wish Egg containing Chansey. Talk to the delivery person on Pokémon Center 2F.',
+    label: 'Chansey Egg with Wish (FireRed/LeafGreen)',
+    description: 'Gives an Egg of Chansey that knows Sweet Scent and Wish.',
     source: 'JPAJ - Pokémon Egg (Chansey).gba',
     flagId: 1005,
     iconSpecies: 412,
@@ -82,8 +82,8 @@ ycUbx8nIAL2/yM6/zADr2f7c1erZANUA293a6ACuANUAysnFG8fJyAC/wcGr+8rg2dXn2QDm1d3n2QDd
   },
   {
     id: 'frlg-wish-egg-drowzee',
-    label: 'Wish Egg Drowzee (FireRed/LeafGreen)',
-    blurb: 'Wish Egg containing Drowzee. Talk to the delivery person on Pokémon Center 2F.',
+    label: 'Drowzee Egg with Wish (FireRed/LeafGreen)',
+    description: 'Gives an Egg of Drowzee that knows Belly Drum and Wish.',
     source: 'JPAJ - Pokémon Egg (Drowzee).gba',
     flagId: 1005,
     iconSpecies: 412,
@@ -102,8 +102,8 @@ ycUbx8nIAL2/yM6/zADr2f7c1erZANUA293a6ACuANUAysnFG8fJyAC/wcGr+8rg2dXn2QDm1d3n2QDd
   },
   {
     id: 'frlg-wish-egg-exeggcute',
-    label: 'Wish Egg Exeggcute (FireRed/LeafGreen)',
-    blurb: 'Wish Egg containing Exeggcute. Talk to the delivery person on Pokémon Center 2F.',
+    label: 'Exeggcute Egg with Wish (FireRed/LeafGreen)',
+    description: 'Gives an Egg of Exeggcute that knows Sweet Scent and Wish.',
     source: 'JPAJ - Pokémon Egg (Exeggcute).gba',
     flagId: 1005,
     iconSpecies: 412,
@@ -122,8 +122,8 @@ ycUbx8nIAL2/yM6/zADr2f7c1erZANUA293a6ACuANUAysnFG8fJyAC/wcGr+8rg2dXn2QDm1d3n2QDd
   },
   {
     id: 'frlg-wish-egg-farfetchd',
-    label: "Wish Egg Farfetch'd (FireRed/LeafGreen)",
-    blurb: "Wish Egg containing Farfetch'd. Talk to the delivery person on Pokémon Center 2F.",
+    label: "Farfetch'd Egg with Wish (FireRed/LeafGreen)",
+    description: "Gives an Egg of Farfetch'd that knows Yawn and Wish.",
     source: "JPAJ - Pokémon Egg (Farfetch'd).gba",
     flagId: 1005,
     iconSpecies: 412,
@@ -142,8 +142,8 @@ ycUbx8nIAL2/yM6/zADr2f7c1erZANUA293a6ACuANUAysnFG8fJyAC/wcGr+8rg2dXn2QDm1d3n2QDd
   },
   {
     id: 'frlg-wish-egg-kangaskhan',
-    label: 'Wish Egg Kangaskhan (FireRed/LeafGreen)',
-    blurb: 'Wish Egg containing Kangaskhan. Talk to the delivery person on Pokémon Center 2F.',
+    label: 'Kangaskhan Egg with Wish (FireRed/LeafGreen)',
+    description: 'Gives an Egg of Kangaskhan that knows Yawn and Wish.',
     source: 'JPAJ - Pokémon Egg (Kangaskhan).gba',
     flagId: 1005,
     iconSpecies: 412,
@@ -162,8 +162,8 @@ ycUbx8nIAL2/yM6/zADr2f7c1erZANUA293a6ACuANUAysnFG8fJyAC/wcGr+8rg2dXn2QDm1d3n2QDd
   },
   {
     id: 'frlg-wish-egg-lickitung',
-    label: 'Wish Egg Lickitung (FireRed/LeafGreen)',
-    blurb: 'Wish Egg containing Lickitung. Talk to the delivery person on Pokémon Center 2F.',
+    label: 'Lickitung Egg with Wish (FireRed/LeafGreen)',
+    description: 'Gives an Egg of Lickitung that knows Heal Bell and Wish.',
     source: 'JPAJ - Pokémon Egg (Lickitung).gba',
     flagId: 1005,
     iconSpecies: 412,

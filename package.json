@@ -1,7 +1,7 @@
 {
   "name": "gblink-wonder",
   "version": "0.1.0",
-  "description": "GB-Link Wonder — emulate a GBA Wireless Adapter and deliver RFU events (e.g. Aurora Ticket) to Pokémon Emerald over a GB-Link USB adapter",
+  "description": "GB-Link Wonder Cards: send Wonder Cards to Pokémon Emerald, FireRed and LeafGreen through a GB-Link adapter in wireless adapter mode",
   "private": true,
   "license": "GPL-3.0-only",
   "type": "module",

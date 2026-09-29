@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="Deliver Pokémon Emerald Mystery Gift events over a GB-Link adapter."
+      content="Send Wonder Cards to Pokémon Emerald, FireRed and LeafGreen through a GB-Link adapter in wireless adapter mode."
     />
     <title>GB-Link Wonder Cards</title>
     <link rel="icon" href="/favicon.ico" />
@@ -61,7 +61,34 @@
             >Choose an event, then connect the GB-Link adapter.</span
           >
         </div>
+
+        <details class="instruction-box unlock-box">
+          <summary class="instruction-label">Unlock instructions</summary>
+          <span class="unlock-text"
+            >Mystery Gift appears on the main menu after you enter the phrase <strong>LINK TOGETHER WITH ALL</strong>
+            in the questionnaire on the counter of any Poké Mart, then save the game. It works the
+            same in FireRed, LeafGreen, and Emerald, once you have the Pokédex.</span
+          >
+          <span class="unlock-text"
+            >Link the Game Boy Advance to the GB-Link with a <strong>Game Boy Color link cable</strong>:
+            Game Boy Advance link cables are missing pins this mode needs.</span
+          >
+        </details>
+
+        <div class="instruction-box description-box">
+          <span class="instruction-label">About this event</span>
+          <span id="description-text"></span>
+        </div>
       </section>
+
+      <div id="decision" class="decision" hidden role="alertdialog" aria-labelledby="decision-title">
+        <p id="decision-title" class="decision-title"></p>
+        <p id="decision-detail" class="decision-detail"></p>
+        <div class="decision-actions">
+          <button type="button" id="decision-send" class="primary">Send anyway</button>
+          <button type="button" id="decision-skip" class="secondary">Don't send</button>
+        </div>
+      </div>
 
       <div id="result-banner" class="result" hidden role="status" aria-live="polite">
         <div class="result-mark" aria-hidden="true"></div>

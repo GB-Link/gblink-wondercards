@@ -1,21 +1,16 @@
-import {
-  connect,
-  disconnect,
-  isConnected,
-  onAdapterDisconnect,
-} from './link/gblink.js';
-import {
-  runSession,
-  setFirmwareWireLog,
-  cancelSession,
-} from './link/wireless-mode.js';
+import { isTransportAvailable } from './link/gblink.js';
+import { Distribution, FirmwareError } from './link/distribution.js';
+import { describeGameCode, describeRom } from './link/mystery-gift.js';
 import {
   EVENT_GROUPS,
   EVENT_PRESETS,
+  eventGames,
   eventOptionLabel,
   findPreset,
-  identityFromEvent,
+  gamesPhrase,
 } from './events/index.js';
+
+const LAUNCHER_URL = 'https://launcher.gblink.io';
 
 const eventSelect = document.getElementById('event-select');
 const statusText = document.getElementById('status-text');
@@ -23,6 +18,7 @@ const statusIndicator = document.getElementById('status-indicator');
 const instructionBox = document.getElementById('instruction-box');
 const instructionLabel = document.getElementById('instruction-label');
 const instructionText = document.getElementById('instruction-text');
+const descriptionText = document.getElementById('description-text');
 const stepper = document.getElementById('stepper');
 const connectBtn = document.getElementById('connect-btn');
 const disconnectBtn = document.getElementById('disconnect-btn');
@@ -32,50 +28,30 @@ const copyLogBtn = document.getElementById('copy-log-btn');
 const resultBanner = document.getElementById('result-banner');
 const resultTitle = document.getElementById('result-title');
 const resultDetail = document.getElementById('result-detail');
+const decisionBox = document.getElementById('decision');
+const decisionTitle = document.getElementById('decision-title');
+const decisionDetail = document.getElementById('decision-detail');
+const decisionSend = document.getElementById('decision-send');
+const decisionSkip = document.getElementById('decision-skip');
 
 let currentEvent = EVENT_PRESETS[0];
 let busy = false;
 let phase = 'idle';
 
+const distribution = new Distribution({ log });
+
 const PHASE_CONFIG = {
-  idle: {
-    step: 0,
-    kind: '',
-    indicator: 'idle',
-    instructionType: 'default',
-    instruction: 'Choose an event, then connect the GB-Link adapter.',
-  },
-  connecting: {
-    step: 0,
-    kind: 'busy',
-    indicator: 'active',
-    instructionType: 'default',
-    instruction: 'Approve the browser permission prompt.',
-  },
-  connected: {
-    step: 2,
-    kind: 'ok',
-    indicator: 'success',
-    instructionType: 'default',
-    instruction:
-      'Stay on the Emerald main menu, then open Mystery Gift → Wireless Communication.',
-  },
-  session: {
-    step: 3,
-    kind: 'busy',
-    indicator: 'active',
-    instructionType: 'default',
-    instruction:
-      'On Emerald, search for the wireless distribution and accept it. Keep this page open.',
-  },
+  idle: { step: 0, kind: '', indicator: 'idle', instructionType: 'default' },
+  connecting: { step: 0, kind: 'busy', indicator: 'active', instructionType: 'default' },
+  ready: { step: 2, kind: 'ok', indicator: 'success', instructionType: 'default' },
+  linking: { step: 3, kind: 'busy', indicator: 'active', instructionType: 'default' },
+  deciding: { step: 3, kind: 'busy', indicator: 'active', instructionType: 'default' },
   complete: {
     step: 4,
     kind: 'ok',
     indicator: 'success',
     instructionType: 'success',
     instructionLabel: 'Complete',
-    instruction:
-      'Pick another event in the list to send a second card. On the GBA, return to Mystery Gift → Wireless Communication.',
   },
   error: {
     step: -1,
@@ -83,19 +59,12 @@ const PHASE_CONFIG = {
     indicator: 'error',
     instructionType: 'error',
     instructionLabel: 'Error',
-    instruction: 'Check the log, then try again.',
   },
 };
 
-function playingOn(event = currentEvent) {
-  return event?.game === 'frlg' ? 'FireRed or LeafGreen' : 'Emerald';
-}
-
-function openMysteryGift(event = currentEvent) {
-  if (event?.game === 'frlg') {
-    return 'On FireRed or LeafGreen, from the title screen open Mystery Gift → Wireless Communication.';
-  }
-  return 'Stay on the Emerald main menu, then open Mystery Gift → Wireless Communication.';
+// Mystery Gift is on the main menu in every game; name the ones the event runs on.
+function whereToOpen(event = currentEvent) {
+  return `On ${gamesPhrase(eventGames(event))}, choose Mystery Gift on the main menu, then Wireless Communication.`;
 }
 
 function log(message) {
@@ -134,13 +103,25 @@ function setStatus(text, kind = '') {
   statusText.className = `status${kind ? ` ${kind}` : ''}`;
 }
 
-function applyPhase(next, { status, instruction } = {}) {
+function setInstruction(text, link = null) {
+  instructionText.textContent = text;
+  if (link) {
+    const a = document.createElement('a');
+    a.href = link.href;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    a.textContent = link.text;
+    instructionText.append(' ', a);
+  }
+}
+
+function applyPhase(next, { status, instruction, link } = {}) {
   phase = next;
   const cfg = PHASE_CONFIG[next] ?? PHASE_CONFIG.idle;
-  setStatus(status ?? cfg.instruction, cfg.kind);
+  setStatus(status ?? statusText.textContent, cfg.kind);
   statusIndicator.dataset.type = cfg.indicator;
   instructionLabel.textContent = cfg.instructionLabel ?? 'Next step';
-  instructionText.textContent = instruction ?? cfg.instruction;
+  if (instruction !== undefined) setInstruction(instruction, link);
   instructionBox.dataset.type = cfg.instructionType;
   document.body.dataset.phase = next;
   updateStepper(cfg.step);
@@ -159,59 +140,161 @@ function showResult(ok, title, detail) {
 }
 
 function refreshButtons() {
-  const connected = isConnected();
+  const connected = distribution.connected;
   connectBtn.disabled = busy || connected;
   disconnectBtn.disabled = busy || !connected;
 }
 
-async function startSession() {
-  if (busy || !isConnected()) return;
-  const payloadBytes = currentEvent.payloadBytes;
-  if (!payloadBytes?.length) {
-    applyPhase('error', { status: 'No payload for this event.' });
+function playerLabel(player) {
+  if (!player) return 'the Game Boy Advance';
+  const name = player.name || 'the Game Boy Advance';
+  return player.version ? `${name} (${player.version})` : name;
+}
+
+distribution.onStatus = ({ stage, player, detail, event }) => {
+  const label = eventOptionLabel(event ?? currentEvent);
+  switch (stage) {
+    case 'open':
+      // A result stays on screen until the next Game Boy Advance joins.
+      if (resultBanner.hidden) applyPhase('ready', { status: `Ready to send ${label}.`, instruction: whereToOpen() });
+      break;
+    case 'joining':
+      hideResult();
+      applyPhase('linking', { status: 'A Game Boy Advance is joining…', instruction: 'Keep this page open.' });
+      log('A Game Boy Advance asked to join');
+      break;
+    case 'linked':
+      applyPhase('linking', { status: `Linked with ${playerLabel(player)}.` });
+      log(`Linked with ${playerLabel(player)}`);
+      break;
+    case 'checking':
+      applyPhase('linking', { status: 'Checking the Wonder Card on the Game Boy Advance…' });
+      break;
+    case 'checked':
+      if (detail?.gameCode) log(`The Game Boy Advance is running ${describeRom(detail)}`);
+      break;
+    case 'asking':
+      applyPhase('linking', {
+        status: 'The Game Boy Advance already has a different Wonder Card.',
+        instruction: 'Answer on the Game Boy Advance whether to throw it away and receive the new one.',
+      });
+      log('The Game Boy Advance is asking whether to replace its Wonder Card');
+      break;
+    case 'sending':
+      applyPhase('linking', { status: `Sending ${label}…`, instruction: 'Keep this page open.' });
+      log(`Sending ${label}`);
+      break;
+    case 'closing':
+      applyPhase('linking', { status: 'Finishing the link…' });
+      break;
+    default:
+      break;
+  }
+};
+
+distribution.onDecision = (request) => {
+  if (!request) {
+    decisionBox.hidden = true;
     return;
   }
-  busy = true;
-  const consoleName = playingOn();
-  applyPhase('session', {
-    status: `Waiting for ${consoleName} to take the Mystery Gift…`,
-    instruction: `On ${consoleName}, search for the wireless distribution and accept it. Keep this page open.`,
-  });
-  hideResult();
-  refreshButtons();
-  try {
-    await runSession({
-      identity: identityFromEvent(currentEvent),
-      payloadBytes,
-      readyMessage: `Armed — open Mystery Gift → Wireless on ${consoleName} now (adapter must already be connected)`,
-      onStatus: (message) => {
-        log(message);
-        if (phase !== 'session') return;
-        if (message === 'Event delivered' || message === 'Delivery complete') {
-          setStatus(message, 'ok');
-        } else {
-          setStatus(message, 'busy');
-        }
-      },
-    });
-    const name = eventOptionLabel(currentEvent);
-    applyPhase('complete', { status: 'Delivery complete.' });
-    showResult(
-      true,
-      'Wonder Card delivered',
-      `${name} is saved on the GBA. Open Mystery Gift → Wonder Cards to view it. To send another card, choose it above, then open Wireless Communication again.`,
-    );
-    log(`${name} delivered`);
-  } catch (err) {
-    const msg = err.message ?? String(err);
-    applyPhase('error', { status: msg });
-    showResult(false, 'Not sent', msg);
-    log(msg);
-  } finally {
-    busy = false;
-    refreshButtons();
+  const { reasons, game, event } = request;
+  const connected = describeGameCode(game.gameCode);
+  const lines = [];
+  if (reasons.includes('same-card')) {
+    decisionTitle.textContent = 'This Game Boy Advance already has this Wonder Card, or one for the same event.';
+    lines.push('Send it again to replace the card on the Game Boy Advance with this one.');
+  } else {
+    decisionTitle.textContent = `This card is for ${gamesPhrase(eventGames(event))}.`;
   }
+  if (reasons.includes('other-game')) {
+    lines.push(`The Game Boy Advance is running ${connected}. The card may not work there.`);
+  }
+  decisionDetail.textContent = lines.join(' ');
+  decisionBox.hidden = false;
+  applyPhase('deciding', {
+    status: 'Waiting for your choice…',
+    instruction: 'The Game Boy Advance waits on "Communicating" until you choose.',
+  });
+  decisionBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+};
+
+function answer(send) {
+  decisionBox.hidden = true;
+  log(send ? 'Sending anyway' : 'Not sending');
+  applyPhase('linking', { status: send ? 'Sending anyway…' : 'Telling the Game Boy Advance…' });
+  distribution.decide(send);
 }
+
+decisionSend.addEventListener('click', () => answer(true));
+decisionSkip.addEventListener('click', () => answer(false));
+
+distribution.onResult = (result) => {
+  decisionBox.hidden = true;
+  const name = eventOptionLabel(result.event ?? currentEvent);
+  const next = `To send another card, choose it above. ${whereToOpen()}`;
+  const again = `To try again, ${whereToOpen().replace(/^On/, 'on')}`;
+  switch (result.outcome) {
+    case 'sent':
+      applyPhase('complete', { status: 'Wonder Card delivered.', instruction: next });
+      showResult(true, 'Wonder Card delivered', `${name} is on the Game Boy Advance. Wait for it to finish saving before turning it off.`);
+      log(`${name} delivered`);
+      break;
+    case 'had-card':
+      applyPhase('ready', { status: 'Not sent: the Game Boy Advance already had this card.', instruction: next });
+      showResult(false, 'Not sent', 'The Game Boy Advance already had this Wonder Card.');
+      log('Not sent: the Game Boy Advance already had this card');
+      break;
+    case 'kept-card':
+      applyPhase('ready', { status: 'Not sent: the old Wonder Card was kept.', instruction: next });
+      showResult(false, 'Not sent', 'The Wonder Card already on the Game Boy Advance was kept.');
+      log('Not sent: the old Wonder Card was kept');
+      break;
+    case 'declined':
+      applyPhase('ready', { status: 'Not sent.', instruction: next });
+      showResult(false, 'Not sent', `${name} was not sent.`);
+      log('Not sent');
+      break;
+    case 'cant-accept':
+      applyPhase('ready', { status: 'The Game Boy Advance could not accept a Wonder Card.', instruction: next });
+      showResult(false, 'Not sent', 'The Game Boy Advance could not accept a Wonder Card.');
+      log('The Game Boy Advance could not accept a Wonder Card');
+      break;
+    case 'unsupported': {
+      const detail = `${name} only runs on ${gamesPhrase(eventGames(result.event ?? currentEvent))}. `
+        + `The Game Boy Advance is running ${describeRom(result.game)}.`;
+      applyPhase('ready', { status: 'Not sent: this card does not run on this game.', instruction: next });
+      showResult(false, 'Not sent', detail);
+      log(`Not sent: ${detail}`);
+      break;
+    }
+    default: {
+      const detail = result.outcome === 'lost'
+        ? 'The link to the Game Boy Advance dropped before the card was delivered.'
+        : result.message ?? 'The link to the Game Boy Advance failed.';
+      applyPhase('error', { status: detail, instruction: again });
+      showResult(false, 'Not sent', detail);
+      log(detail);
+      break;
+    }
+  }
+};
+
+distribution.onAdapter = ({ gbaReady, resetLoop }) => {
+  if (resetLoop) {
+    setStatus('The Game Boy Advance keeps restarting the adapter.', 'err');
+    setInstruction('Use a Game Boy Color link cable and check that it is plugged in firmly at both ends.');
+    log('The Game Boy Advance keeps restarting the adapter: check the link cable');
+  } else if (gbaReady && phase === 'ready') {
+    log('The Game Boy Advance found the adapter');
+  }
+};
+
+distribution.onDisconnect = () => {
+  decisionBox.hidden = true;
+  log('Adapter disconnected');
+  applyPhase('idle', { status: 'Adapter disconnected.', instruction: 'Connect the GB-Link adapter to continue.' });
+  refreshButtons();
+};
 
 function eventIdFromQuery() {
   try {
@@ -226,7 +309,8 @@ function applyEventSelection(id) {
   const preset = findPreset(id) ?? EVENT_PRESETS[0];
   if (!preset) return null;
   eventSelect.value = preset.id;
-  currentEvent = { ...preset };
+  currentEvent = preset;
+  descriptionText.textContent = preset.description;
   return preset;
 }
 
@@ -238,7 +322,6 @@ function populateEventSelect() {
     for (const preset of group.events) {
       const opt = document.createElement('option');
       opt.value = preset.id;
-      opt.dataset.id = preset.id;
       opt.textContent = eventOptionLabel(preset);
       optgroup.appendChild(opt);
     }
@@ -256,46 +339,42 @@ function populateEventSelect() {
 eventSelect.addEventListener('change', () => {
   const preset = applyEventSelection(eventSelect.value);
   if (!preset) return;
-  log(`Selected ${preset.label}`);
-  if (!busy && phase === 'idle') {
-    instructionText.textContent = preset.game === 'frlg'
-      ? 'Connect, then on FireRed or LeafGreen open Mystery Gift → Wireless Communication from the title screen.'
-      : PHASE_CONFIG.idle.instruction;
+  log(`Selected ${eventOptionLabel(preset)}`);
+  distribution.setEvent(preset);
+  if (phase === 'idle') {
+    setInstruction(`Connect the GB-Link adapter. ${whereToOpen(preset)}`);
+  } else if (phase === 'ready' || phase === 'complete') {
+    applyPhase('ready', { status: `Ready to send ${eventOptionLabel(preset)}.`, instruction: whereToOpen(preset) });
   }
-  if (isConnected() && !busy) queueMicrotask(() => startSession());
 });
 
 connectBtn.addEventListener('click', async () => {
   if (busy) return;
   busy = true;
-  applyPhase('connecting', { status: 'Waiting for adapter permission…' });
+  hideResult();
+  applyPhase('connecting', { status: 'Waiting for adapter permission…', instruction: 'Approve the browser permission prompt.' });
   refreshButtons();
   try {
-    await connect({
-      linkMode: 'wireless',
-      cableOverride: 2,
-      onProgress: (message) => {
-        log(message);
-        setStatus(message, 'busy');
-      },
+    await distribution.connect(currentEvent, (message) => {
+      log(message);
+      setStatus(message, 'busy');
     });
-    await setFirmwareWireLog(true);
-    hideResult();
-    const where = openMysteryGift();
-    applyPhase('connected', {
-      status: `Armed. ${where}`,
-      instruction: where,
-    });
-    log(`Adapter ready — ${where}`);
+    log(`Adapter ready (firmware ${distribution.firmware})`);
   } catch (err) {
-    const msg = err.message ?? String(err);
-    applyPhase('error', { status: msg });
-    log(msg);
-    try { await disconnect(); } catch { }
+    if (err instanceof FirmwareError) {
+      applyPhase('error', {
+        status: err.message,
+        instruction: 'Update the adapter in the GB-Link launcher, then connect again.',
+        link: { href: LAUNCHER_URL, text: 'Open the launcher' },
+      });
+    } else {
+      const msg = err?.name === 'NotFoundError' ? 'No adapter was chosen.' : err.message ?? String(err);
+      applyPhase('error', { status: msg, instruction: 'Check the adapter, then connect again.' });
+    }
+    log(statusText.textContent);
   } finally {
     busy = false;
     refreshButtons();
-    if (isConnected()) queueMicrotask(() => startSession());
   }
 });
 
@@ -303,16 +382,12 @@ disconnectBtn.addEventListener('click', async () => {
   if (busy) return;
   busy = true;
   refreshButtons();
+  decisionBox.hidden = true;
   try {
-    await cancelSession();
-    await disconnect();
+    await distribution.disconnect();
     hideResult();
-    applyPhase('idle', { status: 'Disconnected.' });
+    applyPhase('idle', { status: 'Disconnected.', instruction: `Connect the GB-Link adapter. ${whereToOpen()}` });
     log('Disconnected');
-  } catch (err) {
-    const msg = err.message ?? String(err);
-    applyPhase('error', { status: msg });
-    log(msg);
   } finally {
     busy = false;
     refreshButtons();
@@ -328,21 +403,17 @@ copyLogBtn.addEventListener('click', async () => {
   }
 });
 
-onAdapterDisconnect(() => {
-  log('Adapter disconnected');
-  hideResult();
-  applyPhase('idle', { status: 'Disconnected.' });
-  refreshButtons();
-});
-
 function init() {
-  if (!navigator.usb && !navigator.serial) {
-    applyPhase('error', { status: 'Use Chrome, Edge, or Firefox.' });
+  if (!isTransportAvailable()) {
+    applyPhase('error', { status: 'Use Chrome, Edge, or Firefox.', instruction: 'This browser cannot reach USB devices.' });
     connectBtn.disabled = true;
     return;
   }
   populateEventSelect();
-  applyPhase('idle');
+  applyPhase('idle', {
+    status: 'Choose an event, then connect.',
+    instruction: `Connect the GB-Link adapter. ${whereToOpen()}`,
+  });
   refreshButtons();
 }
 

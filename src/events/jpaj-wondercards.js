@@ -8,8 +8,8 @@ function decodeBase64(s) {
 export const JPAJ_WONDERCARDS = [
   {
     id: 'mystic-ticket',
-    label: 'Mystic Ticket (Emerald)',
-    blurb: 'Navel Rock ticket. Talk to the green delivery person on Pokémon Center 2F, then sail from Lilycove.',
+    label: 'Mystic Ticket (Lugia & Ho-Oh) (Emerald)',
+    description: 'Gives the Mystic Ticket. Show it at the harbor in Lilycove City to sail to Navel Rock, where Lugia and Ho-Oh appear.',
     source: 'JPAJ - Mystic Ticket (EMER).gba',
     flagId: 1001,
     iconSpecies: 249,
@@ -27,8 +27,8 @@ v8zT/sHDwM4Aze3n6Nnhrf/J3LgAw7ThAOfj5ubtuAD9Aa3+0+Pp5gC8u8G05wDFv9MAw86/x80Aysm9
   },
   {
     id: 'old-sea-map',
-    label: 'Old Sea Map (Emerald)',
-    blurb: 'Faraway Island map. Talk to the green delivery person on Pokémon Center 2F, then sail from Lilycove.',
+    label: 'Old Sea Map (Mew) (Emerald)',
+    description: 'Gives the Old Sea Map. Show it at the harbor in Lilycove City to sail to Faraway Island, where Mew appears.',
     source: 'JPAJ - Old Sea Map (EMER).gba',
     flagId: 1002,
     iconSpecies: 151,
@@ -47,8 +47,8 @@ ysm9xb/OAN3nANrp4OCt+8rg2dXn2QDn6OPm2QDn4+HZ6Nzd4tsA4+IA7ePp5gDKvbj+6NzZ4gDX4+HZ
   },
   {
     id: 'eon-ticket',
-    label: 'Eon Ticket (Emerald)',
-    blurb: 'Southern Island ticket. Talk to the green delivery person on Pokémon Center 2F, then sail from Lilycove.',
+    label: 'Eon Ticket (Latias or Latios) (Emerald)',
+    description: 'Gives the Eon Ticket. Show it at the harbor in Lilycove City to sail to Southern Island, where Latias or Latios appears.',
     source: 'JPAJ - Eon Ticket (EMER).gba',
     flagId: 1003,
     iconSpecies: 407,
@@ -66,8 +66,8 @@ AM3t5+jZ4a3/ydy4AMO04QDn4+bm7bgA/QGtANPj6eYAvLvBtOf+xb/TAMPOv8fNAMrJvcW/zgDd5wDa
   },
   {
     id: 'altering-cave',
-    label: 'Altering Cave (Emerald)',
-    blurb: 'Changes wild Pokémon in Altering Cave. Talk to the green delivery person, then visit the cave on Route 103.',
+    label: 'Altering Cave (New Wild Pokémon) (Emerald)',
+    description: 'Changes the wild Pokémon in Altering Cave on Route 103, which normally holds only Zubat. Each delivery moves the cave on to the next Pokémon: Mareep, Pineco, Houndour, Teddiursa, Aipom, Shuckle, Stantler and Smeargle, then back to Zubat.',
     source: 'JPAJ - Altering Cave (EMER).gba',
     flagId: 1004,
     iconSpecies: 355,

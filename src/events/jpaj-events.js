@@ -1,4 +1,4 @@
-import { createEventDescriptor } from './descriptor.js';
+import { createEventDescriptor, mysteryGiftStep } from './descriptor.js';
 import { JPAJ_WONDERCARDS } from './jpaj-wondercards.js';
 import {
   defaultWonderDistributorIdentity,
@@ -10,7 +10,7 @@ const identity = defaultWonderDistributorIdentity();
 const GUIDE = [
   'Plug GB-Link into the GBA link port (6-pin cable — SI must be wired).',
   'Select this event, click Connect, and wait for “Armed”.',
-  'On Emerald MAIN MENU select Mystery Gift → Wireless Communication.',
+  mysteryGiftStep({ games: ['emerald'] }),
   'After the card saves, talk to the green-clad delivery person on Pokémon Center 2F.',
 ];
 
@@ -18,8 +18,7 @@ export const jpajWondercardEvents = JPAJ_WONDERCARDS.map((card) =>
   createEventDescriptor({
     id: card.id,
     label: card.label,
-    description:
-      `${card.blurb} Payload ${card.payload.length} bytes from ${card.source}.`,
+    description: card.description,
     serialNo: RFU_SERIAL_WONDER_DISTRIBUTOR,
     mbootFlag: 0,
     maxPlayers: 0,
