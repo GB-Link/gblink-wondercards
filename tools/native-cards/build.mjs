@@ -6,8 +6,8 @@
 //
 // Each RAM script checks the ROM header first; on any other ROM the
 // deliveryman says the gift doesn't work. The speed cards and the Master Ball
-// keep their Wonder Card bytes apart from the footer, and the Master Ball keeps
-// its script.
+// keep their Wonder Card bytes apart from the footer (and the speed cards'
+// subtitle), and the Master Ball keeps its script.
 //
 // A card's code sits after its texts and is called through trampoline.s.
 // Cards that open a menu or a scene first move their script to RELOCATED,
@@ -59,7 +59,7 @@ const FADE_FROM_BLACK = 0;
 const FADE_TO_BLACK = 1;
 const FADE_FROM_WHITE = 2;
 const FADE_TO_WHITE = 3;
-// The state of the V-blank hooks (shiny.s, roamer.s, fly.s, tm.s, feebas.s),
+// The state of the V-blank hooks (shiny.s, roamer.s, fly.s, tm.s, feebas.s, split.s),
 // first byte 1 while on; the shiny hook keeps at SHINY_NAME the name of the
 // Pokémon met in a row.
 const HOOK_STATE = 0x0203ff60;
@@ -230,16 +230,18 @@ const FOOTER = ['GB-Link Team', ''];
 
 const SPEEDS = {
   '0-5': { TEXT_EXTRA: 0, OW_EXTRA: 0, BATTLE_EXTRA: 0, SLOW_PERIOD: 2,
-    message: 'Hold R to play at half speed!\nLet go of R to play normally.' },
+    message: 'Press R to play at half speed!\nPress R again to play normally.' },
   '0-75': { TEXT_EXTRA: 0, OW_EXTRA: 0, BATTLE_EXTRA: 0, SLOW_PERIOD: 4,
-    message: 'Hold R to play a little slower!\nLet go of R to play normally.' },
+    message: 'Press R to play a little slower!\nPress R again to play normally.' },
   2: { TEXT_EXTRA: 1, OW_EXTRA: 1, BATTLE_EXTRA: 1, SLOW_PERIOD: 0,
-    message: 'Hold R for double speed!\nLet go of R to play normally.' },
+    message: 'Press R for double speed!\nPress R again to play normally.' },
   3: { TEXT_EXTRA: 2, OW_EXTRA: 2, BATTLE_EXTRA: 2, SLOW_PERIOD: 0,
-    message: 'Hold R for triple speed!\nLet go of R to play normally.' },
+    message: 'Press R for triple speed!\nPress R again to play normally.' },
   4: { TEXT_EXTRA: 4, OW_EXTRA: 3, BATTLE_EXTRA: 3, SLOW_PERIOD: 0,
-    message: 'Hold R to speed the game up!\nLet go of R to play normally.' },
+    message: 'Press R to speed the game up!\nPress R again to play normally.' },
 };
+// In place of the original cards' "Hold the R Button!".
+const SPEED_SUBTITLE = 'R turns it on and off!';
 
 // Installs the speed hook and explains it.
 const speedScript = (text) => ({
@@ -348,7 +350,8 @@ const CARDS = [
   ...Object.entries(SPEEDS).map(([speedId, { message, ...symbols }]) => ({
     id: `custom-speed-${speedId}`,
     source: 'speed.s',
-    symbols,
+    symbols: { ...symbols, TOGGLE: 1 },
+    subtitle: SPEED_SUBTITLE,
     script: speedScript(message),
   })),
   {
@@ -1168,8 +1171,8 @@ const CARDS = [
     id: 'custom-fast-text',
     source: 'speed.s',
     // The speed hook with extra text printer runs only, which it makes every
-    // frame whether R is held or not; R keeps its own use.
-    symbols: { TEXT_EXTRA: 8, OW_EXTRA: 0, BATTLE_EXTRA: 0, SLOW_PERIOD: 0, HELP_R_DISABLE: 0 },
+    // frame; R keeps its own use.
+    symbols: { TEXT_EXTRA: 8, OW_EXTRA: 0, BATTLE_EXTRA: 0, SLOW_PERIOD: 0, HELP_R_DISABLE: 0, TOGGLE: 0 },
     card: {
       flagId: 1039, idNumber: 39, iconSpecies: 315, bgType: 6,
       title: 'FAST TEXT',
@@ -1431,6 +1434,41 @@ const CARDS = [
       },
     },
   },
+  {
+    id: 'custom-physical-special-split',
+    source: 'split.s',
+    symbols: { STATE: HOOK_STATE },
+    card: {
+      flagId: 1062, idNumber: 62, iconSpecies: 357, bgType: 7,
+      title: 'GEN 4 PHYSICAL/SPECIAL SPLIT',
+      subtitle: 'Moves hit as in later games',
+      body: ['Each move is physical or', 'special on its own, not by its', 'type. Visit the deliveryman', 'on 2F of a POKéMON CENTER.'],
+      footer: FOOTER,
+    },
+    script: {
+      body: [
+        ...compareAddrToValue(HOOK_STATE, 1), ...vgotoIf(EQ, 'active'),
+        ...vmessage('ask_text'), ...waitmessage(), ...yesnobox(),
+        ...compareVarToValue(VAR_RESULT, 0), ...vgotoIf(EQ, 'declined'),
+        ...native('install'),
+        ...say('on_text'),
+        { define: 'active' },
+        ...vmessage('keep_text'), ...waitmessage(), ...yesnobox(),
+        ...compareVarToValue(VAR_RESULT, 1), ...vgotoIf(EQ, 'declined'),
+        ...writebytetoaddr(0, HOOK_STATE),
+        ...say('off_text'),
+        { define: 'declined' },
+        ...say('declined_text'),
+      ],
+      texts: {
+        ask_text: 'Want the physical/special\nsplit?',
+        on_text: 'Done! It lasts until you reset.',
+        keep_text: 'The split is on.\nKeep it on?',
+        off_text: 'Back to the old way!',
+        declined_text: 'Come back any time!',
+      },
+    },
+  },
   // Event Pokémon: EVENT picks the distribution in eventmon.s.
   ...[
     {
@@ -1628,6 +1666,7 @@ const CARDS = [
 // lines, 40 bytes each from byte 10, padded with 0xFF.
 const CARD_TEXT_AT = 10;
 const CARD_TEXT_BYTES = 40;
+const CARD_SUBTITLE_FIELD = 1;
 const CARD_FOOTER_FIELD = 6;
 
 function setCardText(card, field, text) {
@@ -1647,10 +1686,12 @@ function wonderCard({ flagId, idNumber, iconSpecies, bgType, title, subtitle, bo
   return card;
 }
 
-// A Wonder Card from the file with the footer replaced.
-function withFooter(kept) {
+// A Wonder Card from the file with the footer replaced, and the subtitle
+// when the entry has one.
+function withFooter(kept, subtitle) {
   const card = Uint8Array.from(kept);
   FOOTER.forEach((text, i) => setCardText(card, CARD_FOOTER_FIELD + i, text));
+  if (subtitle) setCardText(card, CARD_SUBTITLE_FIELD, subtitle);
   return card;
 }
 
@@ -1798,7 +1839,8 @@ function payloadsText(card, kept, dir) {
   for (const romId of romIds) {
     const family = ROMS[romId].family;
     if (!card.card && !kept[family]) throw new Error(`${card.id}: no ${family} payload to keep the card of`);
-    const cardBytes = card.card ? wonderCard(card.card) : withFooter(kept[family].subarray(0, WONDER_CARD_BYTES));
+    const cardBytes = card.card ? wonderCard(card.card)
+      : withFooter(kept[family].subarray(0, WONDER_CARD_BYTES), card.subtitle);
     const script = card.fixed ? kept[family].subarray(PAYLOAD_SCRIPT_OFFSET) : buildScript(card, romId, dir);
     built[romId] = Buffer.concat([cardBytes, new Uint8Array(PAYLOAD_SCRIPT_OFFSET - WONDER_CARD_BYTES), script]);
     console.log(`${card.id} ${romId}: script ${script.length} bytes`);
