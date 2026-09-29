@@ -2508,4 +2508,64 @@ aLl+AAAIbAK7AMe7zc6/zAC8u8bGANjZ4N3q2ebtANzV5wDV5ubd6tnYq//T4+kA5tnX2d3q2dgA
 5uPj4asAx9Xf2QDn5NXX2bgA6NzZ4v7X4+HZANbV19+t/w==`)],
     },
   },
+  {
+    id: 'custom-pocket-casino',
+    label: 'Pocket Casino (Slots)',
+    description: 'Talk to the delivery person on Pokémon Center 2F and he opens the Game Corner slots where you stand. The Game Corner music plays while the reels spin. If you have no Coin Case, he lends one for this game and takes it back when you quit. Your coins stay with you. If you have fewer than three coins, he gives you 100 to start. Quitting the machine brings you back to the delivery man on Pokémon Center 2F.',
+    roms: NATIVE_ROMS,
+    payloads: {
+      emerald: [decodeBase64(`AgQ0AAAAAAAAAMrJvcW/zgC9u83DyMn////////////////////////////////////B1eHZAL3j
+5uLZ5qv/////////////////////////////////////uwDn5NnX3dXgANvV4dkA3ecA69Xd6N3i
+2////////////////////97p5+gA2uPmAO3j6av///////////////////////////////////+8
+5t3i2wDVAL3Jw8gAvbvNvwDV4tgAvcnDyM2t////////////////wdXh2QDj4qv/////////////
+/////////////////////////////9vW4N3i3///////////////////////////////////////
+////////////////////////////////////////////////////////////AAAAAAAAuAAAAAhq
+WhYBQAAARwQBAQAhDYAAALsBIQAACLk7AAAIRgQBAQAhDYAAALsByAAACEQEAQEAFgFAAQAWA0AA
+ALMCQCECQAMAuwRWAAAItGQAFgNAAQAhAUABALsBdgAACCEDQAEAuwGVAAAIvU0BAAi5mgAACCED
+QAEAuwGLAAAIvQEBAAi5mgAACL3SAAAIuZoAAAi9MQEACGZtaDOqAQAWBIAAACYNgCABiQ2AIQFA
+AQC7BcYAAAhFBAEBAL2DAQAIZm1obAK9vQEACGZtaGwCuwC9ycPIAL27zb8A1eLYAKKhoQC9ycPI
+zbj+3unn6ADa4+YA6Nzd5wDb1eHZrf/T4+kA19XiANbj5ubj6wDVAL3Jw8gAvbvNv7j+3unn6ADa
+4+YA6Nzd5wDb1eHZrf/C2ebZANXm2QCioaEAvcnDyM0A6OMA5ODV7a3/wtncANzZ3LgA4OPj3+cA
+4N3f2QDn4+HZ4+LZ/uvV4ujnAOjjAOTg1e0A5+Ph2QDn4OPo563/wwDr3eDgAOjV39kA6NzZAL3J
+w8gAvbvNvwDW1dffrf7T4+nmAL3Jw8jNAOfo1e0A693o3ADt4+mt/9Pj6eYAvLvBAN3nANrp4OCt
+/w==`)],
+      frlg: [decodeBase64(`8QM0AAAAAAAAAMrJvcW/zgC9u83DyMn////////////////////////////////////B1eHZAL3j
+5uLZ5qv/////////////////////////////////////uwDn5NnX3dXgANvV4dkA3ecA69Xd6N3i
+2////////////////////97p5+gA2uPmAO3j6av///////////////////////////////////+8
+5t3i2wDVAL3Jw8gAvbvNvwDV4tgAvcnDyM2t////////////////wdXh2QDj4qv/////////////
+/////////////////////////////9vW4N3i3///////////////////////////////////////
+////////////////////////////////////////////////////////////AAAAAAAAuAAAAAhq
+WhYBQAAAFgRAAAArQwK7ASIAAAgpQwIWBEABAEcEAQEAIQ2AAAC7ATcAAAi5UQAACEYEAQEAIQ2A
+AAC7AecAAAhEBAEBABYBQAEAFgNAAACzAkAhAkADALsEbAAACLRkABYDQAEAIQFAAQC7AYwAAAgh
+A0ABALsBqwAACL1/AQAIubAAAAghA0ABALsBoQAACL0zAQAIubAAAAi9BAEACLmwAAAIvWMBAAhm
+bWgzEQEAJg2AHgGJDYAhBEABALsFzQAACCpDAiEBQAEAuwXlAAAIRQQBAQC9tQEACGZtaGwCuVEA
+AAi97wEACGZtaCEEQAEAuwUCAQAIKkMCbAK7AL3Jw8gAvbvNvwDV4tgAoqGhAL3Jw8jNuP7e6efo
+ANrj5gDo3N3nANvV4dmt/9Pj6QDX1eIA1uPm5uPrANUAvcnDyAC9u82/uP7e6efoANrj5gDo3N3n
+ANvV4dmt/8LZ5tkA1ebZAKKhoQC9ycPIzQDo4wDk4NXtrf/C2dwA3NncuADg4+Pf5wDg3d/ZAOfj
+4dnj4tn+69Xi6OcA6OMA5ODV7QDn4+HZAOfg4+jnrf/DAOvd4OAA6NXf2QDo3NkAvcnDyAC9u82/
+ANbV19+t/tPj6eYAvcnDyM0A5+jV7QDr3ejcAO3j6a3/0+Pp5gC8u8EA3ecA2ung4K3/`)],
+    },
+  },
+  {
+    id: 'custom-pocket-casino-roulette',
+    label: 'Pocket Casino (Roulette)',
+    description: 'Talk to the delivery person on Pokémon Center 2F and he opens a Game Corner roulette table where you stand. English Emerald. The Game Corner music plays while the wheel spins. If you have no Coin Case, he lends one for this game and takes it back when you quit. Your coins stay with you. If you have fewer than three coins, he gives you 100 to start. Quitting the table brings you back to the delivery man on Pokémon Center 2F.',
+    roms: ['BPEE 1.0'],
+    payloads: {
+      emerald: [decodeBase64(`DAQ0AAAAAAAAAMrJvcW/zgC9u83DyMn////////////////////////////////////M4+ng2ejo
+2av/////////////////////////////////////////uwDn5NnX3dXgANvV4dkA3ecA69Xd6N3i
+2////////////////////97p5+gA2uPmAO3j6av///////////////////////////////////+8
+5t3i2wDVAL3Jw8gAvbvNvwDV4tgAvcnDyM2t////////////////wdXh2QDj4qv/////////////
+/////////////////////////////9vW4N3i3///////////////////////////////////////
+////////////////////////////////////////////////////////////AAAAAAAAuAAAAAhq
+WhYBQAAARwQBAQAhDYAAALsBIQAACLk7AAAIRgQBAQAhDYAAALsBxAAACEQEAQEAFgFAAQAWA0AA
+ALMCQCECQAMAuwRWAAAItGQAFgNAAQAhAUABALsBdgAACCEDQAEAuwGVAAAIvUkBAAi5mgAACCED
+QAEAuwGLAAAIvf0AAAi5mgAACL3OAAAIuZoAAAi9LQEACGZtaDOqAQAWBIAAACWlACchAUABALsF
+wgAACEUEAQEAvX0BAAhmbWhsAr23AQAIZm1obAK7AL3Jw8gAvbvNvwDV4tgAoqGhAL3Jw8jNuP7e
+6efoANrj5gDo3N3nANvV4dmt/9Pj6QDX1eIA1uPm5uPrANUAvcnDyAC9u82/uP7e6efoANrj5gDo
+3N3nANvV4dmt/8LZ5tkA1ebZAKKhoQC9ycPIzQDo4wDk4NXtrf/C2dwA3NncuADg4+Pf5wDg3d/Z
+AOfj4dnj4tn+69Xi6OcA6OMA5ODV7QDm4+ng2ejo2a3/wwDr3eDgAOjV39kA6NzZAL3Jw8gAvbvN
+vwDW1dffrf7T4+nmAL3Jw8jNAOfo1e0A693o3ADt4+mt/9Pj6eYAvLvBAN3nANrp4OCt/w==`)],
+    },
+  },
 ];
