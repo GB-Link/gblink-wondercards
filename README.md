@@ -72,12 +72,13 @@ npm install
 npm run dev
 ```
 
-The page is then at <https://localhost:5173>. It serves itself over HTTPS with its own
-certificate, because browsers only allow USB access from secure pages; accept the
-warning once.
+The page is then at <https://localhost:5173>. The dev server uses its own certificate,
+so accept the browser's warning once.
 
 `npm run build` writes the finished site to `dist/`. It is plain static files, so any web
-host can serve it.
+server can serve it. Browsers allow USB access on `localhost` over plain HTTP, so on your
+own computer even `python3 -m http.server -d dist` works; anywhere else, serve it over
+HTTPS.
 
 ## Making GB-Link Team cards
 
