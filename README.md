@@ -59,9 +59,10 @@ each card only to the games it runs on, and the card checks the game again befor
 does anything.
 
 Some cards change how the game plays: the speed cards, Shiny Hunting, the roaming
-Pokémon lure, Travel Anywhere, Reusable TMs, the Gen 4 Physical/Special split and a few
-more. Their effect lasts until the game is turned off or reset; after that, talk to the
-deliveryman again to switch it back on.
+Pokémon lure, Travel Anywhere, PC Anywhere, HM Moves Without HMs, the Exp. Share for the
+whole party, Reusable TMs, the Gen 4 Physical/Special split and a few more. Their effect
+lasts until the game is turned off or reset; after that, talk to the deliveryman again to
+switch it back on.
 
 ## Running the page yourself
 

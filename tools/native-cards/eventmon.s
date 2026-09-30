@@ -10,22 +10,35 @@
 @ call for the held item (WISHMKR's Salac or Ganlon Berry) or the OT's gender
 @ (bit 7 inverted, or (r / 3) & 1).
 @
+@ Pokémon Box's Eggs take a 32-bit seed and the same calls, with no
+@ anti-shiny step. The Pokémon Channel JIRACHI and the COLOSSEUM gifts come
+@ from the GameCube's LCG and a 32-bit seed: for CHANNEL, the menu and accept
+@ calls PKHeX's ChannelJirachi skips, then the secret id, the PID (bit 31
+@ flipped as the game does), one call each for the held item (Ganlon or Salac
+@ Berry), the game (Sapphire or Ruby) and the OT's gender, and the six IVs
+@ from the top five bits of a call each; for the COLOSSEUM, two calls of IVs,
+@ the ability's call and the PID, from the next seed along while that PID
+@ would be shiny.
+@
 @ CreateMon makes the Pokémon, which then gets the event's OT, IVs, moves and
-@ met data (a fateful encounter, in Ruby, at its level, in a POKé BALL), and
-@ the fateful-encounter flag and National Ribbon where the event had them. It
-@ goes to the next party slot (gPlayerPartyCount, which the script counts
-@ with getpartysize first), else to the PC by the routine GiveMonToPlayer
-@ uses, which (unlike GiveMonToPlayer) keeps the OT. Given, it counts as seen
-@ and caught. VAR_RESULT = MON_GIVEN_TO_PARTY, MON_GIVEN_TO_PC or
-@ MON_CANT_GIVE.
+@ met data (a fateful encounter, in Ruby unless the event says otherwise, at
+@ its level, in a POKé BALL), and the fateful-encounter flag and National
+@ Ribbon where the event had them. An Egg is the player's until it hatches,
+@ as the game's own Eggs are: in Japanese, named タマゴ, with its species' egg
+@ cycles, met at level 0 in this game. It goes to the next party slot
+@ (gPlayerPartyCount, which the script counts with getpartysize first), else
+@ to the PC by the routine GiveMonToPlayer uses, which (unlike
+@ GiveMonToPlayer) keeps the OT. Given, it counts as seen and caught, but an
+@ Egg only once it hatches. VAR_RESULT = MON_GIVEN_TO_PARTY, MON_GIVEN_TO_PC
+@ or MON_CANT_GIVE.
 @
 @ On cards with several Pokémon, `offer` puts the species of Pokémon
 @ VAR_0x8004 in VAR_0x8006, with VAR_RESULT 1, or 0 past the last.
 @
 @ Parameters (--defsym): EVENT (below), PARTY, PARTY_COUNT, ENEMY_PARTY,
 @ SPECIAL_VAR_8004, SPECIAL_VAR_RESULT, RANDOM, CREATE_MON, SET_MON_DATA,
-@ SET_MON_MOVE_SLOT, CALCULATE_STATS, SEND_MON_TO_PC, SPECIES_TO_NATIONAL and
-@ GET_SET_POKEDEX_FLAG.
+@ SET_MON_MOVE_SLOT, CALCULATE_STATS, SEND_MON_TO_PC, SPECIES_TO_NATIONAL,
+@ GET_SET_POKEDEX_FLAG and SPECIES_INFO.
 
     .syntax unified
     .thumb
@@ -42,6 +55,11 @@
     .equ EVENT_AURA_MEW, 8
     .equ EVENT_MYSTRY_MEW, 9
     .equ EVENT_ROCKS_METANG, 10
+    .equ EVENT_CHANNEL_JIRACHI, 11
+    .equ EVENT_BOX_EGGS, 12
+    .equ EVENT_COLOSSEUM_PIKACHU, 13
+    .equ EVENT_AGETO_CELEBI, 14
+    .equ EVENT_MATTLE_HO_OH, 15
 
     .equ F_ANTI_SHINY, 1
     .equ F_FATEFUL, 2
@@ -50,6 +68,13 @@
     .equ F_GENDER_DIV3, 16              @ or (call / 3) & 1; else male
     .equ F_WISHMKR_ITEM, 32
     .equ F_MYSTRY_SEEDS, 64
+    .equ F_SEED_32, 128                 @ a 32-bit seed
+    .equ F_CHANNEL, 256                 @ the GameCube LCG: Pokémon Channel's calls
+    .equ F_CXD, 512                     @ or COLOSSEUM's, never shiny
+    .equ F_EGG, 1024
+    .equ F_JAPANESE, 2048               @ Japanese, named jp_name
+    .equ F_OT_FEMALE, 4096
+    .equ F_MET_LEVEL_0, 8192
 
 @ ---- the distributions (PKHeX EncountersWC3): trainer id (secret id 0),
 @ level, flags and how many Pokémon; the OT names and the Pokémon are below
@@ -105,31 +130,80 @@
     .equ FLAGS, F_ANTI_SHINY | F_NATIONAL_RIBBON
     .equ MONS, 1
 .endif
+.if EVENT == EVENT_CHANNEL_JIRACHI      @ the secret id comes from the calls
+    .equ TID, 40122
+    .equ LEVEL, 5
+    .equ FLAGS, F_SEED_32 | F_CHANNEL | F_MET_LEVEL_0
+    .equ MONS, 1
+.endif
+.if EVENT == EVENT_BOX_EGGS             @ an Egg's trainer id is the player's
+    .equ TID, 0
+    .equ LEVEL, 5
+    .equ FLAGS, F_SEED_32 | F_EGG | F_JAPANESE | F_OT_FEMALE | F_MET_LEVEL_0
+    .equ MONS, 4
+    .equ OT_ID_TYPE, OT_ID_PLAYER_ID
+.endif
+.if EVENT == EVENT_COLOSSEUM_PIKACHU || EVENT == EVENT_AGETO_CELEBI
+    .equ TID, 31121
+    .equ LEVEL, 10
+.endif
+.if EVENT == EVENT_COLOSSEUM_PIKACHU
+    .equ FLAGS, F_SEED_32 | F_CXD | F_JAPANESE
+    .equ MONS, 1
+.endif
+.if EVENT == EVENT_AGETO_CELEBI
+    .equ FLAGS, F_SEED_32 | F_CXD | F_JAPANESE | F_OT_FEMALE
+    .equ MONS, 1
+.endif
+.if EVENT == EVENT_MATTLE_HO_OH
+    .equ TID, 10048
+    .equ LEVEL, 70
+    .equ FLAGS, F_SEED_32 | F_CXD
+    .equ MONS, 1
+    .equ MET_GAME, VERSION_SAPPHIRE
+.endif
 
     .equ ENTRY_SIZE, 10                 @ u16 species, u16 moves[4]
     .equ PARTY_SIZE, 6
     .equ MON_SIZE, 100
     .equ OT_ID_PRESET, 1
+    .equ OT_ID_PLAYER_ID, 0
+    .equ MON_DATA_NICKNAME, 2
+    .equ MON_DATA_LANGUAGE, 3
     .equ MON_DATA_OT_NAME, 7
     .equ MON_DATA_HELD_ITEM, 12
+    .equ MON_DATA_FRIENDSHIP, 32
     .equ MON_DATA_MET_LOCATION, 35
+    .equ MON_DATA_MET_LEVEL, 36
     .equ MON_DATA_MET_GAME, 37
     .equ MON_DATA_HP_IV, 39
+    .equ MON_DATA_IS_EGG, 45
     .equ MON_DATA_OT_GENDER, 49
     .equ MON_DATA_NATIONAL_RIBBON, 76
     .equ MON_DATA_FATEFUL, 80           @ MON_DATA_MODERN_FATEFUL_ENCOUNTER
     .equ METLOC_FATEFUL_ENCOUNTER, 0xFF
+    .equ VERSION_SAPPHIRE, 1
     .equ VERSION_RUBY, 2
+    .equ LANGUAGE_JAPANESE, 1
+    .equ SPECIES_INFO_SIZE, 28
+    .equ EGG_CYCLES, 17                 @ in gSpeciesInfo
     .equ MON_GIVEN_TO_PARTY, 0
     .equ MON_CANT_GIVE, 2
     .equ FLAG_SET_SEEN, 2
     .equ FLAG_SET_CAUGHT, 3
+    .equ ITEM_GANLON_BERRY, 169
     .equ ITEM_SALAC_BERRY, 170
     .equ MYSTRY_SEED_COUNT, 86
     .equ MYSTRY_RELEASED_SEED, 0x6065   @ its only valid Mew is the 2nd along
     .equ FRAME, 24                      @ CreateMon's four stack arguments, then:
     .equ IVS, 16                        @ the IVs, packed as the game keeps them
     .equ VALUE, 20                      @ a value for SetMonData
+.ifndef MET_GAME
+    .equ MET_GAME, VERSION_RUBY
+.endif
+.ifndef OT_ID_TYPE
+    .equ OT_ID_TYPE, OT_ID_PRESET
+.endif
 
 give_mon:
     push {r4, r5, r6, r7, lr}
@@ -146,6 +220,12 @@ give_mon:
     bl call_r3
     lsls r6, r0, #16
     lsrs r6, r6, #16                    @ the origin seed
+.if FLAGS & F_SEED_32
+    ldr r3, p_random
+    bl call_r3
+    lsls r0, r0, #16
+    orrs r6, r0
+.endif
 .if FLAGS & F_MYSTRY_SEEDS
     movs r0, r6
     movs r1, #MYSTRY_SEED_COUNT
@@ -167,6 +247,116 @@ give_mon:
     subs r2, #1
     bne 2b
 .endif
+.if FLAGS & F_CHANNEL
+    movs r5, #0                         @ JIRACHI's menu: calls until the tops
+1:  bl rand16                           @ of the seed have been 1, 2 and 3
+    lsrs r0, r6, #30
+    movs r1, #1
+    lsls r1, r0
+    orrs r5, r1
+    cmp r5, #14
+    bcc 1b
+    bl rand16                           @ accepting it: four calls, a 25%
+    bl rand16                           @ call, and then one call if it passed,
+    bl rand16                           @ else a 33% call and one call if that
+    bl rand16                           @ passed, else two
+    bl rand16
+    movs r1, #1
+    lsls r1, r1, #14
+    cmp r0, r1
+    bls 2f
+    bl rand16
+    ldr r1, p_third
+    cmp r0, r1
+    bls 2f
+    bl rand16
+2:  bl rand16
+    bl rand16
+    movs r5, r0                         @ the secret id
+    bl rand16
+    lsls r7, r0, #16
+    bl rand16
+    orrs r7, r0                         @ the PID
+    movs r1, #1                         @ bit 31 flips unless (low half < 8)
+    cmp r0, #8                          @ is high half ^ secret id ^ trainer id
+    bcc 3f
+    movs r1, #0
+3:  lsrs r0, r7, #16
+    eors r0, r5
+    ldr r2, p_tid
+    eors r0, r2
+    cmp r0, r1
+    beq 4f
+    movs r0, #1
+    lsls r0, r0, #31
+    eors r7, r0
+4:  lsls r5, r5, #16                    @ the secret id, then the top bits of
+    bl rand16                           @ the calls for the item (bit 0), the
+    lsrs r0, r0, #15                    @ game (bit 1) and the OT's gender
+    orrs r5, r0                         @ (bit 2)
+    bl rand16
+    lsrs r0, r0, #15
+    lsls r0, r0, #1
+    orrs r5, r0
+    bl rand16
+    lsrs r0, r0, #15
+    lsls r0, r0, #2
+    orrs r5, r0
+    movs r2, #0
+    movs r3, #0
+5:  bl rand16                           @ each IV, the top five bits of a call
+    lsrs r0, r0, #11
+    lsls r0, r3
+    orrs r2, r0
+    adds r3, #5
+    cmp r3, #30
+    bne 5b
+    str r2, [sp, #IVS]
+    str r7, [sp, #4]                    @ CreateMon(mon, species, level, 0, TRUE,
+    movs r0, #1                         @ pid, OT_ID_PRESET, trainer id)
+    str r0, [sp, #0]
+    movs r0, #OT_ID_PRESET
+    str r0, [sp, #8]
+    lsrs r0, r5, #16
+    lsls r0, r0, #16
+    ldr r1, p_tid
+    orrs r0, r1
+    str r0, [sp, #12]
+.elseif FLAGS & F_CXD
+    movs r5, r6                         @ the first seed
+1:  movs r6, r5
+    bl rand16
+    lsls r7, r0, #17
+    lsrs r7, r7, #17
+    bl rand16
+    lsls r0, r0, #17
+    lsrs r0, r0, #2
+    orrs r7, r0
+    str r7, [sp, #IVS]
+    bl rand16                           @ the ability's call
+    bl rand16
+    lsls r7, r0, #16
+    bl rand16
+    orrs r7, r0                         @ the PID
+    lsrs r0, r7, #16
+    eors r0, r7
+    ldr r1, p_tid
+    eors r0, r1
+    lsls r0, r0, #16
+    lsrs r0, r0, #19
+    bne 2f                              @ not shiny
+    movs r6, r5
+    bl rand16
+    movs r5, r6                         @ else from the next seed along
+    b 1b
+2:  str r7, [sp, #4]                    @ CreateMon(mon, species, level, 0, TRUE,
+    movs r0, #1                         @ pid, OT_ID_PRESET, trainer id)
+    str r0, [sp, #0]
+    movs r0, #OT_ID_PRESET
+    str r0, [sp, #8]
+    ldr r0, p_tid
+    str r0, [sp, #12]
+.else
     bl rand16
     lsls r7, r0, #16
     bl rand16
@@ -187,7 +377,7 @@ give_mon:
     str r7, [sp, #4]                    @ CreateMon(mon, species, level, 0, TRUE,
     movs r0, #1                         @ pid, OT_ID_PRESET, trainer id)
     str r0, [sp, #0]
-    movs r0, #OT_ID_PRESET
+    movs r0, #OT_ID_TYPE
     str r0, [sp, #8]
     ldr r0, p_tid
     str r0, [sp, #12]
@@ -202,6 +392,7 @@ give_mon:
 .if FLAGS & (F_WISHMKR_ITEM | F_GENDER_BIT7 | F_GENDER_DIV3)
     bl rand16
     movs r6, r0                         @ the call for the item or the OT's gender
+.endif
 .endif
     ldr r0, p_mon
     ldrh r1, [r4]
@@ -219,6 +410,10 @@ give_mon:
     movs r0, r6
     movs r1, #3
     svc #6                              @ Div: r0 = call / 3
+.elseif FLAGS & F_CHANNEL
+    lsrs r0, r5, #2
+.elseif FLAGS & F_OT_FEMALE
+    movs r0, #1
 .else
     movs r0, #0                         @ male
 .endif
@@ -227,9 +422,18 @@ give_mon:
     movs r0, #METLOC_FATEFUL_ENCOUNTER
     movs r1, #MON_DATA_MET_LOCATION
     bl set_value
-    movs r0, #VERSION_RUBY
+.if FLAGS & F_CHANNEL
+    lsrs r0, r5, #1
+    movs r1, #1
+    ands r0, r1
+    adds r0, #VERSION_SAPPHIRE          @ Sapphire, or Ruby
+.else
+    movs r0, #MET_GAME
+.endif
+.if (FLAGS & F_EGG) == 0                @ an Egg's is this game
     movs r1, #MON_DATA_MET_GAME
     bl set_value
+.endif
 .if FLAGS & F_WISHMKR_ITEM
     movs r0, r6
     movs r1, #3
@@ -239,6 +443,39 @@ give_mon:
     movs r0, #ITEM_SALAC_BERRY
     subs r0, r0, r1                     @ Salac, or Ganlon when (call / 3) & 1
     movs r1, #MON_DATA_HELD_ITEM
+    bl set_value
+.endif
+.if FLAGS & F_CHANNEL
+    movs r0, #1
+    ands r0, r5
+    adds r0, #ITEM_GANLON_BERRY         @ Ganlon, or Salac
+    movs r1, #MON_DATA_HELD_ITEM
+    bl set_value
+.endif
+.if FLAGS & F_MET_LEVEL_0
+    movs r0, #0
+    movs r1, #MON_DATA_MET_LEVEL
+    bl set_value
+.endif
+.if FLAGS & F_JAPANESE
+    movs r0, #LANGUAGE_JAPANESE
+    movs r1, #MON_DATA_LANGUAGE
+    bl set_value
+    adr r2, jp_name
+    movs r1, #MON_DATA_NICKNAME
+    bl set_data
+.endif
+.if FLAGS & F_EGG
+    ldrh r0, [r4]
+    movs r1, #SPECIES_INFO_SIZE
+    muls r0, r1
+    ldr r1, p_species_info
+    adds r0, r0, r1
+    ldrb r0, [r0, #EGG_CYCLES]
+    movs r1, #MON_DATA_FRIENDSHIP
+    bl set_value
+    movs r0, #1
+    movs r1, #MON_DATA_IS_EGG
     bl set_value
 .endif
 .if FLAGS & F_FATEFUL
@@ -299,6 +536,7 @@ give_mon:
     strh r0, [r1]
     cmp r0, #MON_CANT_GIVE
     beq 9f
+.if (FLAGS & F_EGG) == 0
     ldrh r0, [r4]
     ldr r3, p_species_to_national
     bl call_r3
@@ -309,6 +547,7 @@ give_mon:
     movs r0, r6
     movs r1, #FLAG_SET_CAUGHT
     bl call_r7
+.endif
 9:  add sp, #FRAME
     pop {r4, r5, r6, r7, pc}
 
@@ -355,8 +594,19 @@ offer:
     .align 2
 p_var_result:          .word SPECIAL_VAR_RESULT
 p_random:              .word RANDOM
+.if FLAGS & (F_CHANNEL | F_CXD)
+p_lcg_mul:             .word 0x000343FD
+p_lcg_add:             .word 0x00269EC3
+.else
 p_lcg_mul:             .word 0x41C64E6D
 p_lcg_add:             .word 0x00006073
+.endif
+.if FLAGS & F_CHANNEL
+p_third:               .word 0x547A
+.endif
+.if FLAGS & F_EGG
+p_species_info:        .word SPECIES_INFO
+.endif
 p_tid:                 .word TID
 p_mon:                 .word ENEMY_PARTY
 p_create_mon:          .word CREATE_MON
@@ -452,5 +702,42 @@ mystry_seeds:
     .byte 0xCC, 0xC9, 0xBD, 0xC5, 0xCD, 0xFF, 0xFF, 0xFF           @ ROCKS
 mons:
     .hword 399, 36, 93, 232, 287        @ METANG: TAKE DOWN, CONFUSION, METAL CLAW, REFRESH
+.endif
+.if EVENT == EVENT_CHANNEL_JIRACHI
+    .byte 0xBD, 0xC2, 0xBB, 0xC8, 0xC8, 0xBF, 0xC6, 0xFF           @ CHANNEL
+mons:
+    .hword 409, 273, 93, 156, 0         @ JIRACHI: WISH, CONFUSION, REST
+.endif
+.if EVENT == EVENT_BOX_EGGS
+    .byte 0xBB, 0xD4, 0xCF, 0xCD, 0xBB, 0xFF, 0xFF, 0xFF           @ ＡＺＵＳＡ, until it hatches
+mons:
+    .hword 358, 64, 45, 206, 0          @ SWABLU: PECK, GROWL, FALSE SWIPE
+    .hword 288, 33, 45, 39, 245         @ ZIGZAGOON: TACKLE, GROWL, TAIL WHIP, EXTREMESPEED
+    .hword 315, 45, 33, 39, 6           @ SKITTY: GROWL, TACKLE, TAIL WHIP, PAY DAY
+    .hword 172, 84, 204, 57, 0          @ PICHU: THUNDERSHOCK, CHARM, SURF
+    .align 2
+jp_name:
+    .byte 0x60, 0x6F, 0x8B, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF   @ タマゴ
+.endif
+.if EVENT == EVENT_COLOSSEUM_PIKACHU
+    .byte 0x5A, 0x7B, 0x5C, 0x51, 0x71, 0xFF, 0xFF, 0xFF           @ コロシアム
+mons:
+    .hword 25, 84, 45, 39, 86           @ PIKACHU: THUNDERSHOCK, GROWL, TAIL WHIP, THUNDER WAVE
+    .align 2
+jp_name:
+    .byte 0x9C, 0x56, 0x61, 0x85, 0x53, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF   @ ピカチュウ
+.endif
+.if EVENT == EVENT_AGETO_CELEBI
+    .byte 0x51, 0x8A, 0x64, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF           @ アゲト
+mons:
+    .hword 251, 93, 105, 215, 219       @ CELEBI: CONFUSION, RECOVER, HEAL BELL, SAFEGUARD
+    .align 2
+jp_name:
+    .byte 0x5E, 0x7A, 0x97, 0x80, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF   @ セレビィ
+.endif
+.if EVENT == EVENT_MATTLE_HO_OH
+    .byte 0xC7, 0xBB, 0xCE, 0xCE, 0xC6, 0xBF, 0xFF, 0xFF           @ MATTLE
+mons:
+    .hword 250, 105, 126, 241, 129      @ HO-OH: RECOVER, FIRE BLAST, SUNNY DAY, SWIFT
 .endif
     .align 2
