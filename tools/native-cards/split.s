@@ -4,9 +4,10 @@
 @ script command a frame, and between frames the hook looks at the next one;
 @ when the move's kind is not its type's, it changes what that command reads
 @ for the one frame, and the next frame puts it back:
-@ - damagecalc, and trysetfutureattack for DOOM DESIRE: CalculateBaseDamage
-@   takes the type's branch, so the stats that branch reads hold the other
-@   ones, with their stat stages, and REFLECT and LIGHT SCREEN change places.
+@ - damagecalc, trysetfutureattack for DOOM DESIRE and stockpiletobasedamage
+@   for SPIT UP: CalculateBaseDamage takes the type's branch, so the stats
+@   that branch reads hold the other ones, with their stat stages, and
+@   REFLECT and LIGHT SCREEN change places.
 @   ATTACK's own boosts follow the move: a physical move taking the special
 @   branch gets CHOICE BAND, HUGE POWER, PURE POWER, HUSTLE, GUTS and a burn's
 @   halving in advance; a special move taking the physical branch loses them
@@ -43,6 +44,7 @@
     .equ MAIN_INTR_CHECK, 0x1C
     .equ DAMAGECALC, 0x05
     .equ DATAHPUPDATE, 0x0C
+    .equ STOCKPILETOBASEDAMAGE, 0x86
     .equ TRYSETFUTUREATTACK, 0xC3
     .equ BS_ATTACKER, 1                 @ datahpupdate's battler: 0 is the target
     .equ MOVE_SIZE, 12
@@ -166,28 +168,26 @@ resident:
     beq stats
     cmp r2, #TRYSETFUTUREATTACK
     beq stats
+    cmp r2, #STOCKPILETOBASEDAMAGE
+    beq stats
     cmp r2, #DATAHPUPDATE
-    beq records
-    b 9f
-8:  strb r1, [r4, #PENDING]
-9:  ldr r3, [r4, #KEPT]
-    pop {r4, r5, r6, r7}
-    pop {r0}
-    mov lr, r0
-    bx r3                               @ which returns for the hook
-
-records:
-    ldrb r1, [r7, #1]
+    bne 9f
+    ldrb r1, [r7, #1]                   @ the records
     ldr r0, r_target
     cmp r1, #BS_ATTACKER
-    bhi 9b
+    bhi 9f
     bne 6f
     ldr r0, r_attacker
 6:  ldrb r0, [r0]
     strb r0, [r4, #VICTIM]
     bl swap_records
     movs r1, #RECORDS
-    b 8b
+8:  strb r1, [r4, #PENDING]
+9:  ldr r3, [r4, #KEPT]
+    pop {r4, r5, r6, r7}
+    pop {r0}
+    mov lr, r0
+    bx r3                               @ which returns for the hook
 
 stats:
     ldr r0, r_attacker
