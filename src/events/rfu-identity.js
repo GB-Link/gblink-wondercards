@@ -4,6 +4,8 @@ export const RFU_USER_NAME_LENGTH = 8;
 
 export const ACTIVITY_WONDER_CARD = 21;
 export const LANGUAGE_ENGLISH = 2;
+export const LANGUAGE_FRENCH = 3;
+export const LANGUAGE_GERMAN = 5;
 export const VERSION_EMERALD = 3;
 export const VERSION_FIRERED = 4;
 export const VERSION_LEAFGREEN = 5;

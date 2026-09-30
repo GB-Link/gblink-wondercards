@@ -48,7 +48,7 @@ one Wonder Card at a time:
 
 | Group | What it is |
 | --- | --- |
-| Pokémon Emerald | Emerald's event distributions: Aurora Ticket, Mystic Ticket, Old Sea Map, Eon Ticket, Altering Cave, and Blisy's e-Reader unlock |
+| Pokémon Emerald | Emerald's event distributions: Aurora Ticket, Mystic Ticket, Old Sea Map, Eon Ticket, Altering Cave, Blisy's e-Reader unlock, and Youpileouf's French and German e-Reader unlocks |
 | FireRed / LeafGreen | FireRed and LeafGreen's distributions: Aurora Ticket, Mystic Ticket, Altering Cave and the six Wish Eggs |
 | Project Wonder (Goppier) | Goppier's distribution cartridges; most run on all three games, a few only on Emerald |
 | GB-Link Team | The team's own cards |

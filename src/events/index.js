@@ -1,5 +1,9 @@
 import { auroraTicket } from './aurora-ticket.js';
 import { blisyMysteryEvent } from './blisy-mystery-event.js';
+import {
+  youpileoufMysteryEventFra,
+  youpileoufMysteryEventGer,
+} from './youpileouf-mystery-event.js';
 import { jpajWondercardEvents } from './jpaj-events.js';
 import { jpajFrlgWondercardEvents } from './jpaj-frlg-events.js';
 import { goppierWondercardEvents } from './goppier-events.js';
@@ -43,7 +47,13 @@ export {
 export const EVENT_GROUPS = [
   {
     label: 'Pokémon Emerald',
-    events: [auroraTicket, blisyMysteryEvent, ...jpajWondercardEvents],
+    events: [
+      auroraTicket,
+      blisyMysteryEvent,
+      youpileoufMysteryEventFra,
+      youpileoufMysteryEventGer,
+      ...jpajWondercardEvents,
+    ],
   },
   {
     label: 'FireRed / LeafGreen',
