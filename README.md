@@ -11,7 +11,7 @@ Sea Map, Wish Eggs and more), as Project Wonder's distribution cartridges send t
 the GB-Link Team's own cards: speed-up and slow-down, shiny hunting, event Pokémon,
 Pokémon editing tools, and more.
 
-![Thirteen GB-Link Team cards in use in FireRed and Emerald, from Fast Forward 2× to a Mass Outbreak](docs/demo.gif)
+![Thirty GB-Link Team cards in use in FireRed and Emerald, from Fast Forward 2× to the Pocket Casino's roulette](docs/demo.gif)
 
 
 ## What you need
