@@ -856,16 +856,12 @@ const CARDS = [
         ...native('stat_menu'), ...waitstate(),
         ...compareVarToValue(VAR_RESULT, MENU_B), ...vgotoIf(EQ, 'done'),
         ...native('change_nature'),
-        ...compareVarToValue(VAR_RESULT, 0), ...vgotoIf(EQ, 'failed'),
         ...say('changed_text'),
-        { define: 'failed' },
-        ...say('failed_text'),
       ],
       texts: {
-        raise_text: 'Which stat should it raise?',
-        lower_text: 'And which should it lower?',
+        raise_text: 'Raise which stat?',
+        lower_text: 'Lower which stat?',
         changed_text: '{STR_VAR_1} is {STR_VAR_2} now!',
-        failed_text: 'That didn’t work, sorry!',
       },
     }),
   },
@@ -991,7 +987,7 @@ const CARDS = [
       ],
       texts: {
         power_text: '{STR_VAR_1}’s HIDDEN POWER is\n{STR_VAR_2}-type, power {STR_VAR_3}.',
-        ask_text: 'Shall I raise all its IVs\nto 31?',
+        ask_text: 'Shall I raise all its IVs to\n31? Its nature may change.',
         trained_text: 'All its IVs are 31 now!¶Its HIDDEN POWER is\n{STR_VAR_2}-type, power {STR_VAR_3}.',
         declined_text: 'Come back any time!',
       },
@@ -1702,6 +1698,30 @@ const CARDS = [
         keep_text: 'PC Anywhere is on.\nKeep it on?',
         off_text: 'Back to the PCs in POKéMON\nCENTERS!',
         declined_text: 'Come back any time!',
+      },
+    },
+  },
+  {
+    id: 'custom-pokemon-follow',
+    source: 'follow.s',
+    symbols: { STATE: HOOK_STATE },
+    card: {
+      flagId: 1080, idNumber: 80, iconSpecies: 25, bgType: 5,
+      title: 'POKéMON FOLLOW',
+      subtitle: 'Your partner walks with you',
+      body: ['Your lead POKéMON walks behind', 'you, if the game has its', 'sprite. Visit the deliveryman', 'on 2F of a POKéMON CENTER.'],
+      footer: FOOTER,
+    },
+    // The first talk turns it on, until the game is reset; talking again says so.
+    script: {
+      body: [
+        ...compareAddrToValue(HOOK_STATE, 1), ...vgotoIf(EQ, 'active'),
+        ...native('install'),
+        { define: 'active' },
+        ...say('on_text'),
+      ],
+      texts: {
+        on_text: 'Your lead POKéMON follows you\nuntil you reset!',
       },
     },
   },

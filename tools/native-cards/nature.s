@@ -2,11 +2,12 @@
 @ the multichoice box. `change_nature` gives the Pokémon in gSpecialVar_0x8004
 @ the nature that raises stat VAR_0x8005 and lowers stat VAR_RESULT (both 0-4,
 @ from the menu; natures go 5 to a raised stat in that order), keeping its
-@ gender, ability and shininess, recalculates its stats and puts the nature's
-@ name in gStringVar2. VAR_RESULT = 1, or 0 when no personality turned up.
+@ gender, ability and shininess (repersonalize: its IVs come with the new
+@ personality, and its stats are recalculated), and puts the nature's name
+@ in gStringVar2. VAR_RESULT = 1, or 0 when no personality turned up.
 @
 @ Parameters (--defsym): PARTY, SPECIAL_VAR_8004, SPECIAL_VAR_RESULT,
-@ STRING_VAR_2, STAT_NAMES, NATURE_NAMES, CALCULATE_STATS, STRING_COPY and
+@ STRING_VAR_2, STAT_NAMES, NATURE_NAMES, STRING_COPY and
 @ those of menu.inc, personality.inc and relocate.inc.
 
     .syntax unified
@@ -15,6 +16,7 @@
     .align 2
 
     .set MONS_ORDER, 1
+    .set REP_KEEP_ORDER, 1              @ the low byte stays
     .set MONS_CHOSEN, 1
     .equ STAT_MENU_WIDTH, 8             @ tiles, for SP. ATK and DEFENSE
 
@@ -43,9 +45,6 @@ change_nature:
     strh r0, [r1]
     cmp r0, #0
     beq 9f
-    movs r0, r4
-    ldr r3, p_calculate_stats
-    bl call_r3
     ldr r1, p_nature_names
     lsls r5, r5, #2
     ldr r1, [r1, r5]
@@ -61,7 +60,6 @@ call_r3:
 p_stat_names:      .word STAT_NAMES
 p_var_8004:        .word SPECIAL_VAR_8004
 p_var_result:      .word SPECIAL_VAR_RESULT
-p_calculate_stats: .word CALCULATE_STATS
 p_nature_names:    .word NATURE_NAMES
 p_string_var_2:    .word STRING_VAR_2
 p_string_copy:     .word STRING_COPY

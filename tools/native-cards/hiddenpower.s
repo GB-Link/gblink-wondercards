@@ -2,7 +2,8 @@
 @
 @ With PICK 0 (Hidden Power & IVs), `hidden_power` works out its Hidden Power
 @ from its IVs the way the game does: its type's name goes to gStringVar2 and
-@ its power to VAR_0x8005. `max_ivs` sets every IV to 31.
+@ its power to VAR_0x8005. `max_ivs` sets every IV to 31, with a personality
+@ that goes with them.
 @
 @ With PICK 1 (Hidden Power Type), `kind_menu` asks physical or special and
 @ `type_menu` offers the eight types of kind VAR_0x8006; `set_type` gives the
@@ -25,6 +26,10 @@
     .align 2
 
     .set MONS_CHOSEN, 1
+.if PICK == 0
+    .set MONS_ORDER, 1
+    .set PERSONALITY_SET_ONLY, 1
+.endif
     .equ MON_DATA_HP_IV, 39
     .equ STAT_COUNT, 6
     .equ TYPE_FIGHTING, 1
@@ -80,9 +85,32 @@ hidden_power:
 2:  bl type_name
     pop {r4, r5, r6, r7, pc}
 
+@ Only six frames of the random number generator give six 31s (Method 1), all
+@ with these two personalities but for bit 31: PKHeX wants the PID one of them,
+@ so the Pokémon takes the one with its ability bit (both MODEST). A shiny one
+@ keeps its personality.
 max_ivs:
-    movs r0, #0xFF                      @ every bit set: 31 each
-    b set_ivs
+    push {r4, lr}
+    bl chosen_mon
+    movs r4, r0
+    ldr r1, [r4, #MON_PERSONALITY]
+    ldr r0, [r4, #MON_OT_ID]
+    eors r0, r1
+    lsrs r2, r0, #16
+    eors r0, r2
+    lsls r0, r0, #16
+    lsrs r0, r0, #16                    @ its shiny value
+    cmp r0, #8
+    bcc 2f
+    lsrs r1, r1, #1                     @ carry: the ability bit
+    ldr r1, p_all31_odd
+    bcs 1f
+    ldr r1, p_all31_even
+1:  movs r0, r4
+    bl set_personality
+2:  movs r0, #0xFF                      @ every bit set: 31 each
+    bl set_ivs
+    pop {r4, pc}
 .else
     .set MENU_LISTS, 1
 
@@ -187,6 +215,9 @@ p_string_var_2:    .word STRING_VAR_2
 p_string_copy:     .word STRING_COPY
 .if PICK == 0
 p_get_mon_data:    .word GET_MON_DATA
+p_all31_odd:       .word 0x685011A9
+p_all31_even:      .word 0xF9426F72
+    .include "personality.inc"
 .else
 p_var_result:      .word SPECIAL_VAR_RESULT
 

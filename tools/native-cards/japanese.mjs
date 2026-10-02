@@ -123,15 +123,22 @@ export const JAPANESE = {
   'On until you reset!\nR shows your chain.': 'リセットするまで　オン！\nＲで　れんさを　みられます',
   '{STR_VAR_1} chain: {STR_VAR_2}!': '{STR_VAR_1}の　れんさ　{STR_VAR_2}！',
 
+  // ---- pokémon follow
+  'POKéMON FOLLOW': 'つれあるき',
+  'Your partner walks with you': 'ポケモンと　おさんぽ',
+  'Your lead POKéMON walks behind\nyou, if the game has its\nsprite. Visit the deliveryman\non 2F of a POKéMON CENTER.':
+    'せんとうの　ポケモンが\nうしろを　ついて　あるきます\nポケモンセンター　２かいの\nはいたついんに　はなしかけてね',
+  'Your lead POKéMON follows you\nuntil you reset!': 'せんとうの　ポケモンが\nリセットまで　ついてきます！',
+
   // ---- nature mint
   'NATURE MINT': 'せいかく　ミント',
   'A fresh new nature': 'あたらしい　せいかく',
   'Pick the stat a POKéMON’s\nnature raises and the one it\nlowers. Visit the deliveryman\non 2F of a POKéMON CENTER.':
     'せいかくで　あがる　のうりょく\nさがる　のうりょくを　えらべる！\nポケモンセンター　２かいの\nはいたついんに　はなしかけてね',
-  'Whose nature should I change?': 'どの　ポケモンの\nせいかくを　かえますか？',
-  'Which stat should it raise?': 'どの　のうりょくを　あげますか？',
-  'And which should it lower?': 'どの　のうりょくを　さげますか？',
-  '{STR_VAR_1} is {STR_VAR_2} now!': '{STR_VAR_1}は　{STR_VAR_2}な\nせいかくに　なりました！',
+  'Whose nature should I change?': 'せいかくを　かえる\nポケモンは？',
+  'Raise which stat?': 'あげる　のうりょくは？',
+  'Lower which stat?': 'さげる　のうりょくは？',
+  '{STR_VAR_1} is {STR_VAR_2} now!': '{STR_VAR_1}は　{STR_VAR_2}に\nなりました！',
   'That didn’t work, sorry!': 'うまく　いきませんでした\nごめんなさい！',
 
   // ---- ability capsule
@@ -181,7 +188,7 @@ export const JAPANESE = {
   'Whose HIDDEN POWER should I\ncheck?': 'どの　ポケモンの\nめざめるパワーを　しらべますか？',
   'An EGG keeps its power hidden!': 'タマゴの　ちからは\nまだ　ねむっています！',
   '{STR_VAR_1}’s HIDDEN POWER is\n{STR_VAR_2}-type, power {STR_VAR_3}.': '{STR_VAR_1}の　めざめるパワーは\n{STR_VAR_2}タイプ　いりょく{STR_VAR_3}',
-  'Shall I raise all its IVs\nto 31?': 'こたいちを　ぜんぶ\n３１に　しますか？',
+  'Shall I raise all its IVs to\n31? Its nature may change.': 'こたいちを　ぜんぶ　３１に\nします　せいかくも　かわります',
   'All its IVs are 31 now!¶Its HIDDEN POWER is\n{STR_VAR_2}-type, power {STR_VAR_3}.':
     'こたいちが　ぜんぶ　３１に！¶めざめるパワーは\n{STR_VAR_2}タイプ　いりょく{STR_VAR_3}',
 
