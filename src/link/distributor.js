@@ -1,4 +1,6 @@
 // A librfu parent with one child in slot 0, run through GB-Link wireless mode.
+// It can show a searching GBA more than one parent (a beacon each, under its
+// own device id); the GBA links with the one it looks for.
 //
 // Parent frames start with a 3-byte header (size 0-6, phase 9-10, n 11-12,
 // ack 13, state 14-17, slot bitmap 18-21); once linked they carry five 14-byte
@@ -35,6 +37,8 @@ export const CMD = {
 };
 
 export const RFU_SERIAL_WONDER_DISTRIBUTOR = 0x7f7d;
+// The Japanese games' distributor (their Joy Spot), the only one they look for.
+export const RFU_SERIAL_JOY_SPOT = 0x7f7f;
 
 function randomId() {
   return 1 + Math.floor(Math.random() * 0xfffe);
@@ -90,8 +94,7 @@ export class Distributor {
   constructor({ send, log = () => {} }) {
     this.send = send;
     this.log = log;
-    this.devid = randomId();
-    this.beacon = null;
+    this.hosts = [];             // { devid, beacon } for each parent shown
     this.state = 'idle';
     this.ticks = 0;
     this.onConnect = null;
@@ -117,9 +120,10 @@ export class Distributor {
     this.silentTicks = 0;
   }
 
-  // Opens the group, or updates what it advertises.
-  open(beacon) {
-    this.beacon = beacon;
+  // Opens the group, or updates what it advertises: a beacon for each parent
+  // to show, each keeping its device id.
+  open(beacons) {
+    this.hosts = beacons.map((beacon, i) => ({ devid: this.hosts[i]?.devid ?? randomId(), beacon }));
     if (this.state === 'idle' || this.state === 'closed') this.state = 'open';
     this.broadcast();
   }
@@ -131,9 +135,8 @@ export class Distributor {
   }
 
   broadcast() {
-    if (!this.beacon) return;
     const slot = this.state === 'open' ? 0 : 0xff;
-    this.send(broadcastFrame(this.devid | (slot << 16), this.beacon));
+    for (const { devid, beacon } of this.hosts) this.send(broadcastFrame(devid | (slot << 16), beacon));
   }
 
   receive({ type, header, frame }) {
@@ -164,7 +167,7 @@ export class Distributor {
   }
 
   connectRequest(header) {
-    if ((header & 0xffff) !== this.devid) {
+    if (!this.hosts.some(({ devid }) => devid === (header & 0xffff))) {
       this.send(commandFrame(RFU1.CONNECT_NACK, 0));
       return;
     }

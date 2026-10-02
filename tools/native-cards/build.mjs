@@ -5,9 +5,11 @@
 //   node tools/native-cards/build.mjs
 //
 // Each RAM script checks the ROM header first; on any other ROM the
-// deliveryman says the gift doesn't work. The speed cards and the Master Ball
-// keep their Wonder Card bytes apart from the footer (and the speed cards'
-// subtitle), and the Master Ball keeps its script.
+// deliveryman says the gift doesn't work. The speed cards, the Pocket Casino
+// and the Master Ball keep their Wonder Card bytes apart from the footer (and
+// the speed cards' subtitle), and the Master Ball keeps its script. The
+// Japanese games, whose cards and texts are laid out otherwise, get every card
+// built here, its texts from japanese.mjs.
 //
 // A card's code sits after its texts and is called through trampoline.s.
 // Cards that open a menu or a scene first move their script to RELOCATED,
@@ -18,12 +20,25 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { JAPANESE } from './japanese.mjs';
 import { ROMS } from './roms.mjs';
+
+// Every ROM of each game the cards are built for. The ROMs of a game are
+// stored as patches of one of them, the Japanese ones apart (their cards and
+// texts are another layout).
+const EMERALD_ROMS = Object.keys(ROMS).filter((id) => ROMS[id].family === 'emerald');
+const FRLG_ROMS = Object.keys(ROMS).filter((id) => ROMS[id].family === 'frlg');
+const BASE_ROM = { emerald: 'BPEE 1.0', frlg: 'BPRE 1.0' };
+const PATCH_GROUPS = [
+  { base: 'BPEE 1.0', family: 'emerald', japanese: false },
+  { base: 'BPRE 1.0', family: 'frlg', japanese: false },
+  { base: 'BPEJ 1.0', family: 'emerald', japanese: true },
+  { base: 'BPRJ 1.0', family: 'frlg', japanese: true },
+];
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const EVENTS_FILE = join(HERE, '../../src/events/custom-wondercards.js');
 
-const WONDER_CARD_BYTES = 332;
 const PAYLOAD_SCRIPT_OFFSET = 336;
 const RAM_SCRIPT_BYTES = 995;
 const VIRTUAL_BASE = 0x08000000;
@@ -42,6 +57,8 @@ const VAR_TEMP_1 = 0x4001;
 const VAR_TEMP_2 = 0x4002;
 const VAR_TEMP_3 = 0x4003;
 const VAR_TEMP_4 = 0x4004;
+const VAR_0x8000 = 0x8000;
+const VAR_0x8001 = 0x8001;
 const VAR_0x8004 = 0x8004;
 const VAR_0x8005 = 0x8005;
 const VAR_0x8006 = 0x8006;
@@ -55,6 +72,8 @@ const ITEM_STARF_BERRY = 174;
 const ITEM_ENIGMA_BERRY = 175;
 const ITEM_RARE_CANDY = 68;
 const ITEM_COIN_CASE = 260;
+const ITEM_MASTER_BALL = 1;
+const STD_OBTAIN_ITEM = 0;
 const PARTY_SIZE = 6;
 const SPECIES_EGG = 412;
 const SPECIES_UNOWN = 201;
@@ -65,10 +84,8 @@ const FADE_TO_BLACK = 1;
 const FADE_FROM_WHITE = 2;
 const FADE_TO_WHITE = 3;
 // The state of the V-blank hooks (shiny.s, roamer.s, fly.s, tm.s, feebas.s, split.s),
-// first byte 1 while on; the shiny hook keeps at SHINY_NAME the name of the
-// Pokémon met in a row.
+// first byte 1 while on.
 const HOOK_STATE = 0x0203ff60;
-const SHINY_NAME = HOOK_STATE + 12;
 
 // first..last, both included.
 const range = (first, last) => Array.from({ length: last - first + 1 }, (_, i) => first + i);
@@ -88,11 +105,11 @@ const FAMILIES = {
     },
     flags: {
       pokedex: 0x829, nationalDex: 0x840, ribbons: 0x83b, mysteryGiftDone: 0x3d8, pendingDaycareEgg: 0x266,
-      gotCoinCase: 0x243,
+      gotCoinCase: 0x243, wonderCard13: 0x2b6,     // FLAG_WONDER_CARD_UNUSED_13
       // FLAG_TUTOR_DOUBLE_EDGE to FLAG_TUTOR_BODY_SLAM, then the three ultimate moves
       tutors: [...range(0x2c0, 0x2ce), ...range(0x2de, 0x2e0)],
     },
-    vars: { repelSteps: 0x4020 },
+    vars: { repelSteps: 0x4020, mysteryGift1: 0x40b6 },
     // MUS_LEVEL_UP, which FireRed/LeafGreen play for a gift Pokémon; MUS_GAME_CORNER
     songs: { giftMon: 257, gameCorner: 273 },
   },
@@ -108,25 +125,40 @@ const FAMILIES = {
     },
     flags: {
       pokedex: 0x861, nationalDex: 0x896, ribbons: 0x89b, mysteryGiftDone: 0x1e4, pendingDaycareEgg: 0x86,
+      wonderCard13: 0x149,              // FLAG_WONDER_CARD_UNUSED_13
       tutors: range(0x1b1, 0x1ba),      // FLAG_MOVE_TUTOR_TAUGHT_SWAGGER to _EXPLOSION
     },
-    vars: { mirageHigh: 0x4024, repelSteps: 0x4021 },
+    vars: { mirageHigh: 0x4024, repelSteps: 0x4021, mysteryGift1: 0x40de },     // VAR_GIFT_UNUSED_1
     // MUS_OBTAIN_ITEM, which Emerald plays for one; MUS_GAME_CORNER
     songs: { giftMon: 370, gameCorner: 426 },
   },
 };
 
-// A card's view of one ROM: its family's constants and the ROM's addresses.
+// Japanese Emerald's table of specials has three fewer before every one the
+// cards call.
+const JAPANESE_EMERALD_SPECIALS_SHIFT = -3;
+// The language numbers the games give their Pokémon, by the ROM header's letter.
+const GAME_LANGUAGES = { J: 1, E: 2, F: 3, I: 4, D: 5, S: 7 };
+
+// A card's view of one ROM: its family's constants, the ROM's addresses and
+// its language.
 function gameOf(romId) {
   const rom = ROMS[romId];
   const family = FAMILIES[rom.family];
-  return { ...family, ...rom, id: romId, symbols: { ...rom.symbols, ...family.symbols } };
+  const japanese = rom.language === 'J';
+  const shift = japanese && rom.family === 'emerald' ? JAPANESE_EMERALD_SPECIALS_SHIFT : 0;
+  const specials = Object.fromEntries(Object.entries(family.specials).map(([name, id]) => [name, id + shift]));
+  return {
+    ...family, ...rom, id: romId, specials, lang: japanese ? LANGUAGES.japanese : LANGUAGES.international,
+    symbols: { ...rom.symbols, ...family.symbols, PC_SPECIAL: family.symbols.PC_SPECIAL + shift,
+      GAME_LANGUAGE: GAME_LANGUAGES[rom.language] },
+  };
 }
 
-// The ROM header must name exactly this ROM: game letter, English, revision.
+// The ROM header must name exactly this ROM: game letter, language, revision.
 const romCheck = (game, wrong) => [
   compareAddrToValue(ROM_GAME, game.game), vgotoIf(NE, wrong),
-  compareAddrToValue(ROM_LANGUAGE, 'E'), vgotoIf(NE, wrong),
+  compareAddrToValue(ROM_LANGUAGE, game.language), vgotoIf(NE, wrong),
   compareAddrToValue(ROM_REVISION, game.revision), vgotoIf(NE, wrong),
 ];
 
@@ -160,6 +192,8 @@ const checkitemspace = (item, quantity = 1) => [0x46, ...u16(item), ...u16(quant
 const compareAddrToValue = (address, value) => [0x1f, ...u32(address),
   typeof value === 'string' ? value.charCodeAt(0) : value];
 const copyvar = (to, from) => [0x19, ...u16(to), ...u16(from)];
+const setorcopyvar = (variable, value) => [0x1a, ...u16(variable), ...u16(value)];
+const callstd = (std) => [0x09, std];
 const copybyte = (to, from) => [0x15, ...u32(to), ...u32(from)];
 const compareVarToValue = (variable, value) => [0x21, ...u16(variable), ...u16(value)];
 const callnative = (address) => [0x23, ...u32(address)];
@@ -219,8 +253,33 @@ const PLACEHOLDERS = {
   RIVAL: [0xfd, 0x06],
 };
 
+// The Japanese games' characters: kana, and the full-width marks, digits and
+// letters of their fonts, for which ASCII ones may stand.
+const HIRAGANA = 'あいうえおかきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやゆよらりるれろわをん'
+  + 'ぁぃぅぇぉゃゅょがぎぐげござじずぜぞだぢづでどばびぶべぼぱぴぷぺぽっ';
+const KATAKANA = 'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン'
+  + 'ァィゥェォャュョガギグゲゴザジズゼゾダヂヅデドバビブベボパピプペポッ';
+const JAPANESE_CHARSET = new Map([
+  ['　', 0x00], [' ', 0x00], ['！', 0xab], ['!', 0xab], ['？', 0xac], ['?', 0xac], ['。', 0xad], ['ー', 0xae],
+  ['-', 0xae], ['・', 0xaf], ['‥', 0xb0], ['『', 0xb1], ['』', 0xb2], ['「', 0xb3], ['」', 0xb4], ['♂', 0xb5],
+  ['♀', 0xb6], ['円', 0xb7], ['．', 0xb8], ['.', 0xb8], ['×', 0xb9], ['／', 0xba], ['/', 0xba], ['：', 0xf0],
+  [':', 0xf0], ['¶', 0xfb], ['\n', 0xfe],
+]);
+[...HIRAGANA].forEach((c, i) => JAPANESE_CHARSET.set(c, 0x01 + i));
+[...KATAKANA].forEach((c, i) => JAPANESE_CHARSET.set(c, 0x51 + i));
+for (let i = 0; i < 10; i++) {
+  JAPANESE_CHARSET.set(String(i), 0xa1 + i);
+  JAPANESE_CHARSET.set(String.fromCharCode(0xff10 + i), 0xa1 + i);
+}
+for (let i = 0; i < 26; i++) {
+  for (const [ascii, wide, code] of [[65, 0xff21, 0xbb], [97, 0xff41, 0xd5]]) {
+    JAPANESE_CHARSET.set(String.fromCharCode(ascii + i), code + i);
+    JAPANESE_CHARSET.set(String.fromCharCode(wide + i), code + i);
+  }
+}
+
 // {name} is replaced with tokens[name].
-function encodeText(text, tokens = PLACEHOLDERS) {
+function encodeText(text, tokens = PLACEHOLDERS, charset = CHARSET) {
   const out = [];
   for (const part of text.split(/(\{\w+\})/)) {
     const token = /^\{(\w+)\}$/.exec(part);
@@ -230,14 +289,29 @@ function encodeText(text, tokens = PLACEHOLDERS) {
       continue;
     }
     for (const c of part) {
-      if (!CHARSET.has(c)) throw new Error(`no game character for ${JSON.stringify(c)}`);
-      out.push(CHARSET.get(c));
+      if (!charset.has(c)) throw new Error(`no game character for ${JSON.stringify(c)} in ${JSON.stringify(text)}`);
+      out.push(charset.get(c));
     }
   }
   return [...out, 0xff];
 }
 
-const textItems = (texts = {}) => Object.entries(texts).flatMap(([label, text]) => [{ define: label }, ...encodeText(text)]);
+// The Japanese of one of this file's English texts.
+function japaneseText(english) {
+  if (!Object.hasOwn(JAPANESE, english)) throw new Error(`no Japanese for ${JSON.stringify(english)} in japanese.mjs`);
+  return JAPANESE[english];
+}
+
+// A game's language: its characters, its Wonder Card's size and text fields
+// (title, subtitle, four body lines, two footer lines), and what each English
+// text of this file is in it.
+const LANGUAGES = {
+  international: { charset: CHARSET, card: { bytes: 332, fields: [40, 40, 40, 40, 40, 40, 40, 40] }, text: (english) => english },
+  japanese: { charset: JAPANESE_CHARSET, card: { bytes: 164, fields: [18, 13, 20, 20, 20, 20, 20, 20] }, text: japaneseText },
+};
+
+const textItems = (texts, lang) => Object.entries(texts).flatMap(([label, text]) =>
+  [{ define: label }, ...encodeText(lang.text(text), PLACEHOLDERS, lang.charset)]);
 
 // ---- the cards
 const FOOTER = ['GB-Link Team', ''];
@@ -409,6 +483,36 @@ const casinoScript = (game, { play, playText }) => {
     },
   };
 };
+
+// The Master Ball card's script as Decryptu wrote it, for the Japanese games,
+// which can't take the card's own: once per card, as a flag and a var that a
+// new card clears mark the ball given.
+const masterBallScript = (game) => ({
+  body: [
+    ...checkflag(game.flags.mysteryGiftDone), ...vgotoIf(EQ, 'already'),
+    ...vmessage('arrived_text'), ...waitmessage(), ...waitbuttonpress(), ...closemessage(),
+    ...clearflag(game.flags.wonderCard13),
+    ...compareVarToValue(game.vars.mysteryGift1, 0), ...vgotoIf(NE, 'given'),
+    ...vmessage('received_text'), ...waitmessage(), ...waitbuttonpress(), ...closemessage(),
+    ...checkitemspace(ITEM_MASTER_BALL),
+    ...compareVarToValue(VAR_RESULT, 0), ...vgotoIf(EQ, 'no_room'),
+    ...setorcopyvar(VAR_0x8000, ITEM_MASTER_BALL), ...setorcopyvar(VAR_0x8001, 1), ...callstd(STD_OBTAIN_ITEM),
+    ...setvar(game.vars.mysteryGift1, 1),
+    { define: 'given' },
+    ...setflag(game.flags.mysteryGiftDone), ...setflag(game.flags.wonderCard13),
+    ...release(), ...end(),
+    { define: 'already' },
+    ...say('already_text'),
+    { define: 'no_room' },
+    ...say('no_room_text'),
+  ],
+  texts: {
+    arrived_text: 'A MASTER BALL delivery has arrived!',
+    received_text: 'You received a MASTER BALL!',
+    already_text: 'You already collected the MASTER BALL.',
+    no_room_text: 'No room! Make space, then\ncome back.',
+  },
+});
 
 // Offers the card's Pokémon in turn (offer), their names in STR_VAR_1, until
 // one is taken: VAR_0x8004.
@@ -710,38 +814,23 @@ const CARDS = [
       flagId: 1022, idNumber: 22, iconSpecies: 130, bgType: 0,
       title: 'SHINY HUNTING',
       subtitle: 'Shiny POKéMON, more often',
-      body: ['Meet shiny POKéMON more often,', 'more still in a row. Visit the', 'deliveryman on the 2nd floor', 'of a POKéMON CENTER.'],
+      body: ['Catch or defeat one POKéMON', 'again and again to meet it', 'shiny. Visit the deliveryman', 'on 2F of a POKéMON CENTER.'],
       footer: FOOTER,
     },
-    // `report` puts the chain in VAR_0x8005 and the next odds in VAR_0x8006.
+    // R in the field shows the chain (r_script).
+    data: {
+      chain_text: '{STR_VAR_1} chain: {STR_VAR_2}!',
+    },
+    // The first talk turns it on, until the game is reset; talking again says so.
     script: {
       body: [
         ...compareAddrToValue(HOOK_STATE, 1), ...vgotoIf(EQ, 'active'),
-        ...vmessage('ask_text'), ...waitmessage(), ...yesnobox(),
-        ...compareVarToValue(VAR_RESULT, 0), ...vgotoIf(EQ, 'declined'),
         ...native('install'),
-        ...say('on_text'),
         { define: 'active' },
-        ...native('report'),
-        ...buffernumberstring(1, VAR_0x8006),
-        ...compareVarToValue(VAR_0x8005, 0), ...vgotoIf(EQ, 'keep'),
-        ...bufferstring(0, SHINY_NAME), ...buffernumberstring(2, VAR_0x8005),
-        ...vmessage('chain_text'), ...waitmessage(), ...waitbuttonpress(),
-        { define: 'keep' },
-        ...vmessage('keep_text'), ...waitmessage(), ...yesnobox(),
-        ...compareVarToValue(VAR_RESULT, 1), ...vgotoIf(EQ, 'declined'),
-        ...writebytetoaddr(0, HOOK_STATE),
-        ...say('off_text'),
-        { define: 'declined' },
-        ...say('declined_text'),
+        ...say('on_text'),
       ],
       texts: {
-        ask_text: 'Want shiny POKéMON more often?',
-        on_text: 'Done! Same POKéMON in a row,\nbetter odds!',
-        chain_text: '{STR_VAR_1} in a row: {STR_VAR_3}!',
-        keep_text: 'Shiny odds: 1 in {STR_VAR_2}.\nKeep hunting?',
-        off_text: 'Shiny hunting is off.',
-        declined_text: 'Come back any time!',
+        on_text: 'On until you reset!\nR shows your chain.',
       },
     },
   },
@@ -1105,7 +1194,7 @@ const CARDS = [
   },
   {
     id: 'custom-mirage-island',
-    roms: ['BPEE 1.0'],
+    roms: EMERALD_ROMS,
     card: {
       flagId: 1034, idNumber: 34, iconSpecies: 360, bgType: 1,
       title: 'MIRAGE ISLAND',
@@ -1132,7 +1221,7 @@ const CARDS = [
   {
     id: 'custom-new-day',
     source: 'newday.s',
-    roms: ['BPEE 1.0'],
+    roms: EMERALD_ROMS,
     card: {
       flagId: 1065, idNumber: 65, iconSpecies: 163, bgType: 2,
       title: 'A NEW DAY',
@@ -1150,7 +1239,7 @@ const CARDS = [
   {
     id: 'custom-mass-outbreak',
     source: 'outbreak.s',
-    roms: ['BPEE 1.0'],
+    roms: EMERALD_ROMS,
     card: {
       flagId: 1058, idNumber: 58, iconSpecies: 376, bgType: 6,
       title: 'MASS OUTBREAK',
@@ -1178,7 +1267,7 @@ const CARDS = [
   {
     id: 'custom-berry-garden',
     source: 'berries.s',
-    roms: ['BPEE 1.0'],
+    roms: EMERALD_ROMS,
     card: {
       flagId: 1035, idNumber: 35, iconSpecies: 369, bgType: 3,
       title: 'BERRY GARDEN',
@@ -1210,7 +1299,7 @@ const CARDS = [
   {
     id: 'custom-rival-name',
     source: 'rival.s',
-    roms: ['BPRE 1.0', 'BPRE 1.1', 'BPGE 1.0', 'BPGE 1.1'],
+    roms: FRLG_ROMS,
     card: {
       flagId: 1037, idNumber: 37, iconSpecies: 133, bgType: 4,
       title: 'RENAME YOUR RIVAL',
@@ -1874,7 +1963,7 @@ const CARDS = [
   {
     id: 'custom-feebas-finder',
     source: 'feebas.s',
-    roms: ['BPEE 1.0'],
+    roms: EMERALD_ROMS,
     symbols: { STATE: HOOK_STATE },
     card: {
       flagId: 1059, idNumber: 59, iconSpecies: 328, bgType: 3,
@@ -1993,7 +2082,7 @@ const CARDS = [
       },
     }),
   },
-  { id: 'custom-master-ball', fixed: true },
+  { id: 'custom-master-ball', fixed: true, script: masterBallScript },
   {
     id: 'custom-pocket-casino',
     source: 'casino.s',
@@ -2009,7 +2098,7 @@ const CARDS = [
   },
   {
     id: 'custom-pocket-casino-roulette',
-    roms: ['BPEE 1.0'],
+    roms: EMERALD_ROMS,
     source: 'casino.s',
     script: (game) => casinoScript(game, {
       play: [...setvar(VAR_0x8004, 0), ...relocate(), ...special(game.specials.playRoulette), ...waitstate()],
@@ -2018,37 +2107,64 @@ const CARDS = [
   },
 ];
 
-// struct WonderCard text: title, subtitle, four body lines and two footer
-// lines, 40 bytes each from byte 10, padded with 0xFF.
+// struct WonderCard: flag, icon, number, background, then from byte 10 the
+// texts (LANGUAGES), each padded with 0xFF; the game ends one that fills its
+// field. Its last bytes are padding.
 const CARD_TEXT_AT = 10;
-const CARD_TEXT_BYTES = 40;
 const CARD_SUBTITLE_FIELD = 1;
 const CARD_FOOTER_FIELD = 6;
+const INTERNATIONAL_CARD_BYTES = LANGUAGES.international.card.bytes;
 
-function setCardText(card, field, text) {
-  const bytes = encodeText(text);
-  if (bytes.length > CARD_TEXT_BYTES) throw new Error(`card text too long: ${text}`);
-  const at = CARD_TEXT_AT + CARD_TEXT_BYTES * field;
-  card.fill(0xff, at, at + CARD_TEXT_BYTES);
+function setCardText(card, field, text, lang) {
+  const { fields } = lang.card;
+  const bytes = encodeText(text, PLACEHOLDERS, lang.charset).slice(0, -1);
+  if (bytes.length > fields[field]) throw new Error(`card text too long: ${text}`);
+  const at = CARD_TEXT_AT + fields.slice(0, field).reduce((sum, size) => sum + size, 0);
+  card.fill(0xff, at, at + fields[field]);
   card.set(bytes, at);
 }
 
-function wonderCard({ flagId, idNumber, iconSpecies, bgType, title, subtitle, body, footer }) {
-  const card = new Uint8Array(WONDER_CARD_BYTES).fill(0xff);
+// The texts in the game's language, the body's four lines as one text.
+function setCardTexts(card, { title, subtitle, body, footer }, lang) {
+  const lines = lang.text(body.join('\n')).split('\n');
+  if (lines.length !== 4) throw new Error(`a card body needs four lines: ${body.join(' / ')}`);
+  [lang.text(title), lang.text(subtitle), ...lines, ...footer.map(lang.text)]
+    .forEach((text, field) => setCardText(card, field, text, lang));
+  card.fill(0, CARD_TEXT_AT + lang.card.fields.reduce((sum, size) => sum + size, 0));
+}
+
+function wonderCard({ flagId, idNumber, iconSpecies, bgType, ...texts }, lang) {
+  const card = new Uint8Array(lang.card.bytes).fill(0xff);
   card.set([...u16(flagId), ...u16(iconSpecies), ...u32(idNumber), bgType << 2, 0]);
-  [title, subtitle, ...body, ...footer].forEach((text, field) => setCardText(card, field, text));
-  card[330] = 0;
-  card[331] = 0;
+  setCardTexts(card, texts, lang);
   return card;
 }
 
 // A Wonder Card from the file with the footer replaced, and the subtitle
-// when the entry has one.
-function withFooter(kept, subtitle) {
-  const card = Uint8Array.from(kept);
-  FOOTER.forEach((text, i) => setCardText(card, CARD_FOOTER_FIELD + i, text));
-  if (subtitle) setCardText(card, CARD_SUBTITLE_FIELD, subtitle);
+// when the entry has one; the Japanese games get its texts in Japanese.
+function withFooter(kept, subtitle, lang) {
+  if (lang === LANGUAGES.international) {
+    const card = Uint8Array.from(kept);
+    FOOTER.forEach((text, i) => setCardText(card, CARD_FOOTER_FIELD + i, text, lang));
+    if (subtitle) setCardText(card, CARD_SUBTITLE_FIELD, subtitle, lang);
+    return card;
+  }
+  const english = Array.from({ length: 8 }, (_, field) => readText(kept.subarray(CARD_TEXT_AT + 40 * field, CARD_TEXT_AT + 40 * (field + 1))));
+  const card = new Uint8Array(lang.card.bytes).fill(0xff);
+  card.set(kept.subarray(0, CARD_TEXT_AT));
+  setCardTexts(card, { title: english[0], subtitle: subtitle ?? english[1], body: english.slice(2, 6), footer: FOOTER }, lang);
   return card;
+}
+
+// English game text back to characters (the first of CHARSET's for a code).
+function readText(bytes) {
+  const chars = new Map([...CHARSET].reverse().map(([c, code]) => [code, c]));
+  let text = '';
+  for (const code of bytes) {
+    if (code === 0xff) break;
+    text += chars.get(code) ?? '?';
+  }
+  return text;
 }
 
 // ---- native code
@@ -2060,7 +2176,7 @@ function assemble(source, symbols, dir, data = null) {
   const bin = join(dir, 'out.bin');
   if (data) {
     const include = Object.entries(data.strings).map(([label, text]) =>
-      `    .align 2\n${label}:\n    .byte ${encodeText(text, data.tokens).join(', ')}\n`);
+      `    .align 2\n${label}:\n    .byte ${encodeText(data.lang.text(text), data.tokens, data.lang.charset).join(', ')}\n`);
     writeFileSync(join(dir, 'data.inc'), `${include.join('')}    .align 2\n`);
   }
   const defsyms = Object.entries(symbols).flatMap(([key, value]) => ['--defsym', `${key}=${value}`]);
@@ -2115,7 +2231,7 @@ function buildScript(card, romId, dir) {
   const script = typeof card.script === 'function' ? card.script(game) : card.script;
   const code = card.source
     && assemble(card.source, { ...game.symbols, ...card.symbols, TEXT_BUFFER, RELOCATED, MENU_LIST,
-      SCRIPT_IN_SB1: game.scriptInSaveBlock1 }, dir, card.data && { strings: card.data, tokens: card.tokens });
+      SCRIPT_IN_SB1: game.scriptInSaveBlock1 }, dir, card.data && { strings: card.data, tokens: card.tokens, lang: game.lang });
   const trampoline = Buffer.from(code ? assemble('trampoline.s', {}, dir).bytes : []);
   const loadTrampoline = Array.from({ length: trampoline.length / 4 },
     (_, i) => loadword(i, trampoline.readUInt32LE(4 * i))).flat();
@@ -2139,7 +2255,7 @@ function buildScript(card, romId, dir) {
     ...script.body,
     { define: 'wrong_rom' },
     ...say('wrong_rom_message'),
-    ...textItems(texts),
+    ...textItems(texts, game.lang),
     ...(code ? [{ align: 4 }, { define: 'code' }, ...code.bytes] : []),
   ].flatMap(expand);
   const out = layout(items, VIRTUAL_BASE);
@@ -2154,15 +2270,15 @@ function base64Lines(bytes, indent = '') {
   return Buffer.from(bytes).toString('base64').match(/.{1,76}/g).join(`\n${indent}`);
 }
 
-const FRLG_ROMS = ['BPRE 1.0', 'BPRE 1.1', 'BPGE 1.0', 'BPGE 1.1'];
 const decodeText = (bytes, indent = '') => `decodeBase64(\`${base64Lines(bytes, indent)}\`)`;
 
-// The payloads an entry holds now, by game family: the first for each.
+// The payloads an entry holds now, by game family: the family's own, or its
+// base ROM's.
 function keptPayloads(body) {
   const kept = {};
-  const found = body.matchAll(/(emerald|frlg|'BP[RG]E 1\.0'|romPayloads)(?:: \[|\()decodeBase64\(`([^`]*)`\)/g);
-  for (const [, key, base64] of found) {
-    kept[key === 'emerald' ? 'emerald' : 'frlg'] ??= Buffer.from(base64.replace(/\s+/g, ''), 'base64');
+  const found = body.matchAll(/(?:(emerald|frlg): \[|romPayloads\((?:'BP(E|R)E 1\.0', )?)decodeBase64\(`([^`]*)`\)/g);
+  for (const [, family, letter, base64] of found) {
+    kept[family ?? (letter === 'E' ? 'emerald' : 'frlg')] ??= Buffer.from(base64.replace(/\s+/g, ''), 'base64');
   }
   return kept;
 }
@@ -2170,7 +2286,7 @@ function keptPayloads(body) {
 // The bytes of `bytes` that differ from `base`, as runs of [u16 offset, u8
 // length, bytes]; runs a few bytes apart are merged.
 function patchOf(base, bytes) {
-  if (bytes.length !== base.length) throw new Error('FireRed/LeafGreen payloads of different sizes');
+  if (bytes.length !== base.length) throw new Error('payloads of different sizes in one group');
   const out = [];
   for (let at = 0; at < bytes.length;) {
     if (bytes[at] === base[at]) {
@@ -2187,34 +2303,44 @@ function patchOf(base, bytes) {
   return Uint8Array.from(out);
 }
 
-// The text of an entry's payloads: Emerald's, then FireRed 1.0's with the other
-// FireRed/LeafGreen ROMs as patches of it.
+// The text of an entry's payloads: for each group of ROMs (PATCH_GROUPS), its
+// base ROM's with the others as patches of it. A card that keeps its script
+// has one per game instead, built here only for the Japanese games.
 function payloadsText(card, kept, dir) {
-  const romIds = card.fixed ? ['BPEE 1.0', 'BPRE 1.0'] : card.roms ?? Object.keys(ROMS);
+  const romIds = (card.roms ?? Object.keys(ROMS)).filter((romId) => !card.fixed || ROMS[romId].language === 'J');
   const built = {};
   for (const romId of romIds) {
-    const family = ROMS[romId].family;
-    if (!card.card && !kept[family]) throw new Error(`${card.id}: no ${family} payload to keep the card of`);
-    const cardBytes = card.card ? wonderCard(card.card)
-      : withFooter(kept[family].subarray(0, WONDER_CARD_BYTES), card.subtitle);
-    const script = card.fixed ? kept[family].subarray(PAYLOAD_SCRIPT_OFFSET) : buildScript(card, romId, dir);
-    built[romId] = Buffer.concat([cardBytes, new Uint8Array(PAYLOAD_SCRIPT_OFFSET - WONDER_CARD_BYTES), script]);
+    const game = gameOf(romId);
+    if (!card.card && !kept[game.family]) throw new Error(`${card.id}: no ${game.family} payload to keep the card of`);
+    const cardBytes = card.card ? wonderCard(card.card, game.lang)
+      : withFooter(kept[game.family].subarray(0, INTERNATIONAL_CARD_BYTES), card.subtitle, game.lang);
+    const script = buildScript(card, romId, dir);
+    built[romId] = Buffer.concat([cardBytes, new Uint8Array(PAYLOAD_SCRIPT_OFFSET - cardBytes.length), script]);
     console.log(`${card.id} ${romId}: script ${script.length} bytes`);
   }
   const lines = [];
-  if (built['BPEE 1.0']) lines.push(`\n      emerald: [${decodeText(built['BPEE 1.0'])}],`);
   if (card.fixed) {
-    lines.push(`\n      frlg: [${decodeText(built['BPRE 1.0'])}],`);
-  } else if (built['BPRE 1.0']) {
-    const patches = FRLG_ROMS.slice(1).map((romId) =>
-      `\n        '${romId}': ${decodeText(patchOf(built['BPRE 1.0'], built[romId]), '  ')},`);
-    lines.push(`\n      ...romPayloads(${decodeText(built['BPRE 1.0'])}, {${patches.join('')}\n      }),`);
+    for (const family of ['emerald', 'frlg']) {
+      const cardBytes = withFooter(kept[family].subarray(0, INTERNATIONAL_CARD_BYTES), card.subtitle, LANGUAGES.international);
+      const payload = Buffer.concat([cardBytes, kept[family].subarray(INTERNATIONAL_CARD_BYTES)]);
+      lines.push(`\n      ${family}: [${decodeText(payload)}],`);
+    }
+  }
+  for (const { base, family, japanese } of PATCH_GROUPS) {
+    if (!built[base]) continue;
+    const patches = romIds.filter((romId) => romId !== base && ROMS[romId].family === family
+      && (ROMS[romId].language === 'J') === japanese).map((romId) =>
+      `\n        '${romId}': ${decodeText(patchOf(built[base], built[romId]), '  ')},`);
+    lines.push(`\n      ...romPayloads('${base}', ${decodeText(built[base])}, {${patches.join('')}\n      }),`);
   }
   return lines.join('');
 }
 
-
 let source = readFileSync(EVENTS_FILE, 'utf8');
+// the ROM lists the entries name
+const romList = (ids) => `[${ids.map((id) => `'${id}'`).join(', ')}]`;
+source = source.replace(/^const EMERALD_ROMS = .*$/m, `const EMERALD_ROMS = ${romList(EMERALD_ROMS)};`)
+  .replace(/^const FRLG_ROMS = .*$/m, `const FRLG_ROMS = ${romList(FRLG_ROMS)};`);
 const dir = mkdtempSync(join(tmpdir(), 'native-cards-'));
 try {
   for (const card of CARDS) {
@@ -2228,3 +2354,6 @@ try {
 } finally {
   rmSync(dir, { recursive: true, force: true });
 }
+
+const { WC3_DIR, writeWc3Files } = await import('./wc3.mjs');
+console.log(`${await writeWc3Files()} .wc3 files in ${WC3_DIR}`);

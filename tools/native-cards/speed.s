@@ -10,8 +10,8 @@
 @ Parameters (--defsym): INTR_VBLANK (&gIntrTable[4]), VBLANK_INTR, INTR_CHECK,
 @ RUN_TEXT_PRINTERS, TEXT_PRINTERS, MAIN, CB1_OVERWORLD, CB2_OVERWORLD,
 @ BATTLE_CB1, BATTLE_CB2, PALETTE_FADE, HELP_R_DISABLE (0 if none), TEXT_EXTRA,
-@ OW_EXTRA, BATTLE_EXTRA (extra runs per frame), SLOW_PERIOD (0 for none) and
-@ TOGGLE.
+@ OW_EXTRA, BATTLE_EXTRA (extra runs per frame), SLOW_PERIOD (0 for none),
+@ TOGGLE and JAPANESE (1 on the Japanese games).
 
     .syntax unified
     .thumb
@@ -25,6 +25,11 @@
     .equ R_DOWN, 1                      @ u8: R was down at the last V-blank
     .equ KEYINPUT, 0x04000130           @ a bit is clear while its button is down
     .equ LINE_BUDGET, 228
+.if JAPANESE
+    .equ TEXT_PRINTER_SIZE, 32          @ struct TextPrinter
+.else
+    .equ TEXT_PRINTER_SIZE, 36
+.endif
 
 install:
     push {r4, r5, r6, lr}
@@ -121,7 +126,7 @@ resident:
     ldrb r3, [r0, #9]
     cmp r2, r3
     beq exit                            @ a printer that has not started yet
-3:  adds r0, #36
+3:  adds r0, #TEXT_PRINTER_SIZE
     subs r1, #1
     bne 2b
     ldr r0, p_state

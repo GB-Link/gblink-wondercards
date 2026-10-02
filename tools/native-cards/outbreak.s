@@ -7,7 +7,8 @@
 @
 @ Parameters (--defsym): SB1_PTR, SPECIAL_VAR_RESULT, ENEMY_PARTY,
 @ STRING_VAR_1, STRING_VAR_2, SPECIES_NAMES, CREATE_WILD_MON, GET_MON_DATA,
-@ GET_SPECIES_NAME, GET_MAP_HEADER, GET_MAP_NAME and those of menu.inc.
+@ GET_SPECIES_NAME, GET_MAP_HEADER, GET_MAP_NAME, JAPANESE (1 on the Japanese
+@ games) and those of menu.inc.
 
     .syntax unified
     .thumb
@@ -28,7 +29,11 @@
     .equ OUTBREAK_DAYS, 0x12            @ u16 days left
     .equ PROBABILITY, 50                @ as the TV's outbreaks
     .equ DAYS, 2
+.if JAPANESE
+    .equ SPECIES_NAME_SIZE, 6
+.else
     .equ SPECIES_NAME_SIZE, 11
+.endif
     .equ MON_DATA_MOVE1, 13
     .equ REGION_MAP_SECTION, 0x14       @ in a map header
     .equ MENU_WIDTH, 9                  @ tiles, for SKARMORY

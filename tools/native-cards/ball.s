@@ -6,8 +6,8 @@
 @ to 0.
 @
 @ Parameters (--defsym): PARTY, SPECIAL_VAR_8004, SPECIAL_VAR_RESULT,
-@ SET_MON_DATA, ITEMS, STRING_VAR_2, STRING_COPY and those of menu.inc and
-@ relocate.inc; data.inc holds MORE.
+@ SET_MON_DATA, ITEMS, STRING_VAR_2, STRING_COPY, JAPANESE (1 on the Japanese
+@ games) and those of menu.inc and relocate.inc; data.inc holds MORE.
 
     .syntax unified
     .thumb
@@ -16,7 +16,11 @@
 
     .set MONS_CHOSEN, 1
     .equ MON_DATA_POKEBALL, 38
-    .equ ITEM_SIZE, 0x2C                @ struct Item, its name first
+.if JAPANESE
+    .equ ITEM_SIZE, 0x28                @ struct Item, its name first
+.else
+    .equ ITEM_SIZE, 0x2C
+.endif
     .equ FIRST_PAGE, 7                  @ balls before MORE
     .equ SECOND_PAGE, 4
     .equ MENU_WIDTH, 13                 @ tiles, for PREMIER BALL

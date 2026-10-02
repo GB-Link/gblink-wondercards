@@ -19,6 +19,8 @@ export const blisyMysteryEvent = createEventDescriptor({
   gnameBytes: identity.gnameBytes,
   unameBytes: identity.unameBytes,
   payloadBytes: BLISY_TICKET_PAYLOAD,
+  // English Emerald's unlock: the other languages' Emerald never finish its script.
+  roms: ['BPEE 1.0'],
   guideSteps: [
     'Plug GB-Link into the GBA link port (6-pin cable — SI must be wired).',
     'Select this event, click Connect, and wait for “Armed”.',

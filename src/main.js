@@ -1,14 +1,17 @@
 import { isTransportAvailable } from './link/gblink.js';
 import { Distribution, FirmwareError } from './link/distribution.js';
-import { describeGameCode, describeRom } from './link/mystery-gift.js';
+import { describeGameCode, describeRom, isJapanese } from './link/mystery-gift.js';
 import {
   EVENT_GROUPS,
   EVENT_PRESETS,
+  customWondercardEvents,
   eventGames,
+  eventLanguages,
   eventOptionLabel,
   findPreset,
   gamesPhrase,
 } from './events/index.js';
+import { WC3_GAMES, Wc3Error, payloadForGame, wc3Event, wc3FileName, wc3FromPayload } from './events/wc3.js';
 
 const LAUNCHER_URL = 'https://launcher.gblink.io';
 
@@ -33,8 +36,16 @@ const decisionTitle = document.getElementById('decision-title');
 const decisionDetail = document.getElementById('decision-detail');
 const decisionSend = document.getElementById('decision-send');
 const decisionSkip = document.getElementById('decision-skip');
+const wc3Export = document.getElementById('wc3-export');
+const wc3Game = document.getElementById('wc3-game');
+const wc3Download = document.getElementById('wc3-download');
+const wc3Open = document.getElementById('wc3-open');
+const wc3File = document.getElementById('wc3-file');
+const wc3Note = document.getElementById('wc3-note');
+const wc3Own = document.getElementById('wc3-own');
 
 let currentEvent = EVENT_PRESETS[0];
+let fileEvent = null;   // the card of a .wc3 opened on the page
 let busy = false;
 let phase = 'idle';
 
@@ -64,7 +75,8 @@ const PHASE_CONFIG = {
 
 // Mystery Gift is on the main menu in every game; name the ones the event runs on.
 function whereToOpen(event = currentEvent) {
-  return `On ${gamesPhrase(eventGames(event))}, choose Mystery Gift on the main menu, then Wireless Communication.`;
+  const games = eventGames(event);
+  return `On ${gamesPhrase(games)}, choose Mystery Gift on the main menu, then Wireless Communication.`;
 }
 
 function log(message) {
@@ -260,8 +272,13 @@ distribution.onResult = (result) => {
       log('The Game Boy Advance could not accept a Wonder Card');
       break;
     case 'unsupported': {
-      const detail = `${name} only runs on ${gamesPhrase(eventGames(result.event ?? currentEvent))}. `
-        + `The Game Boy Advance is running ${describeRom(result.game)}.`;
+      const event = result.event ?? currentEvent;
+      const languages = eventLanguages(event);
+      const japanese = isJapanese(result.game);
+      let why = `${name} only runs on ${gamesPhrase(eventGames(event))}.`;
+      if (japanese && !languages.japanese) why = `${name} has no Wonder Card for the Japanese games, which lay theirs out differently.`;
+      if (!japanese && !languages.international) why = `${name} is a Japanese Wonder Card: it only goes to the Japanese games.`;
+      const detail = `${why} The Game Boy Advance is running ${describeRom(result.game)}.`;
       applyPhase('ready', { status: 'Not sent: this card does not run on this game.', instruction: next });
       showResult(false, 'Not sent', detail);
       log(`Not sent: ${detail}`);
@@ -306,12 +323,64 @@ function eventIdFromQuery() {
 }
 
 function applyEventSelection(id) {
-  const preset = findPreset(id) ?? EVENT_PRESETS[0];
+  const preset = (fileEvent && id === fileEvent.id ? fileEvent : findPreset(id)) ?? EVENT_PRESETS[0];
   if (!preset) return null;
   eventSelect.value = preset.id;
   currentEvent = preset;
   descriptionText.textContent = preset.description;
+  renderExport(preset);
   return preset;
+}
+
+// The games a GB-Link Team card can be downloaded for, as a .wc3 for emulators and save editors.
+function renderExport(event) {
+  const games = customWondercardEvents.includes(event)
+    ? WC3_GAMES.filter((game) => payloadForGame(event.variants, event.roms, game))
+    : [];
+  wc3Export.hidden = !games.length;
+  if (!games.length) return;
+  const previous = wc3Game.value;
+  wc3Game.replaceChildren(...games.map((game) => new Option(game.name, game.name)));
+  if (games.some((game) => game.name === previous)) wc3Game.value = previous;
+}
+
+function downloadWc3() {
+  const game = WC3_GAMES.find((candidate) => candidate.name === wc3Game.value);
+  const payload = game && payloadForGame(currentEvent.variants, currentEvent.roms, game);
+  if (!payload) return;
+  const url = URL.createObjectURL(new Blob([wc3FromPayload(payload, game.japanese)], { type: 'application/octet-stream' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = wc3FileName(`${eventOptionLabel(currentEvent)} (${game.name})`);
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  log(`Downloaded ${link.download}`);
+}
+
+// A .wc3 someone opened or dropped: listed under its own group and chosen.
+async function openWc3(file) {
+  if (!file) return;
+  wc3Note.hidden = true;
+  let event;
+  try {
+    event = wc3Event(new Uint8Array(await file.arrayBuffer()), file.name);
+  } catch (error) {
+    wc3Note.textContent = error instanceof Wc3Error ? error.message : `${file.name} could not be read.`;
+    wc3Note.hidden = false;
+    wc3Own.open = true;                 // a dropped file's note shows even when the section is folded
+    log(`${file.name}: ${wc3Note.textContent}`);
+    return;
+  }
+  fileEvent = event;
+  let group = eventSelect.querySelector('optgroup[data-file]');
+  if (!group) {
+    group = document.createElement('optgroup');
+    group.label = 'Your .wc3 file';
+    group.dataset.file = '';
+    eventSelect.appendChild(group);
+  }
+  group.replaceChildren(new Option(eventOptionLabel(event), event.id));
+  chooseEvent(event.id);
 }
 
 function populateEventSelect() {
@@ -336,9 +405,12 @@ function populateEventSelect() {
   }
 }
 
-eventSelect.addEventListener('change', () => {
-  const preset = applyEventSelection(eventSelect.value);
+eventSelect.addEventListener('change', () => chooseEvent(eventSelect.value));
+
+function chooseEvent(id) {
+  const preset = applyEventSelection(id);
   if (!preset) return;
+  wc3Note.hidden = true;
   log(`Selected ${eventOptionLabel(preset)}`);
   distribution.setEvent(preset);
   if (phase === 'idle') {
@@ -346,6 +418,32 @@ eventSelect.addEventListener('change', () => {
   } else if (phase === 'ready' || phase === 'complete') {
     applyPhase('ready', { status: `Ready to send ${eventOptionLabel(preset)}.`, instruction: whereToOpen(preset) });
   }
+}
+
+wc3Download.addEventListener('click', downloadWc3);
+wc3Open.addEventListener('click', () => wc3File.click());
+wc3File.addEventListener('change', () => {
+  openWc3(wc3File.files[0]);
+  wc3File.value = '';
+});
+
+// A file dropped anywhere on the page is opened as a .wc3 instead of replacing the page.
+function dragsFiles(event) {
+  return Array.from(event.dataTransfer?.types ?? []).includes('Files');
+}
+window.addEventListener('dragover', (event) => {
+  if (!dragsFiles(event)) return;
+  event.preventDefault();
+  document.body.dataset.dropping = '';
+});
+window.addEventListener('dragleave', (event) => {
+  if (!event.relatedTarget) delete document.body.dataset.dropping;
+});
+window.addEventListener('drop', (event) => {
+  if (!dragsFiles(event)) return;
+  event.preventDefault();
+  delete document.body.dataset.dropping;
+  openWc3(event.dataTransfer.files[0]);
 });
 
 connectBtn.addEventListener('click', async () => {

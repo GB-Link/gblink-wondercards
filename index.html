@@ -17,9 +17,27 @@
     </header>
 
     <main class="app">
-      <section class="panel">
+      <section class="panel" id="event-panel">
         <label for="event-select">Event</label>
         <select id="event-select" aria-label="Select event"></select>
+
+        <details class="panel-block unlock-box" id="wc3-export" hidden>
+          <summary>Use it in an emulator</summary>
+          <div class="panel-row">
+            <select id="wc3-game" aria-label="Game to download the card for"></select>
+            <button type="button" id="wc3-download" class="secondary">Download .wc3</button>
+          </div>
+        </details>
+
+        <details class="panel-block unlock-box" id="wc3-own">
+          <summary>Your own Wonder Card</summary>
+          <div class="panel-row">
+            <button type="button" id="wc3-open" class="secondary">Open a .wc3 file</button>
+            <span class="panel-hint">or drop it on this page</span>
+          </div>
+          <input type="file" id="wc3-file" accept=".wc3" hidden />
+          <p class="panel-note" id="wc3-note" role="alert" hidden></p>
+        </details>
       </section>
 
       <section class="status-panel">

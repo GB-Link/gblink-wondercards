@@ -1,11 +1,13 @@
 @ Nickname Change: routines for the party Pokémon in gSpecialVar_0x8004.
 @ `nicknamed` sets VAR_RESULT to 1 when its nickname differs from its species
 @ name; `unname` sets the nickname back to the species name. Renaming itself
-@ uses the game's ChangePokemonNickname special.
+@ uses the game's ChangePokemonNickname special. The game knows its species
+@ names only in its own language: a Pokémon from another language's game
+@ counts as having none to take back.
 @
 @ Parameters (--defsym): PARTY, SPECIAL_VAR_8004, SPECIAL_VAR_RESULT,
-@ TEXT_BUFFER (scratch), GET_MON_DATA, SET_MON_DATA, GET_SPECIES_NAME and those
-@ of relocate.inc.
+@ TEXT_BUFFER (scratch), GET_MON_DATA, SET_MON_DATA, GET_SPECIES_NAME,
+@ GAME_LANGUAGE (the game's language number) and those of relocate.inc.
 
     .syntax unified
     .thumb
@@ -13,6 +15,7 @@
     .align 2
 
     .equ MON_DATA_NICKNAME, 2
+    .equ MON_DATA_LANGUAGE, 3
     .equ MON_DATA_SPECIES, 11
     .equ NICKNAME_AT, 0x20              @ in TEXT_BUFFER, after the species name
     .equ EOS, 0xFF
@@ -21,6 +24,14 @@ nicknamed:
     push {r4, lr}
     bl species_name
     movs r0, r4
+    movs r1, #MON_DATA_LANGUAGE
+    ldr r3, p_get_mon_data
+    bl call_r3
+    cmp r0, #GAME_LANGUAGE
+    beq 4f
+    movs r0, #0
+    b 3f
+4:  movs r0, r4
     movs r1, #MON_DATA_NICKNAME
     ldr r2, p_text_buffer
     adds r2, #NICKNAME_AT

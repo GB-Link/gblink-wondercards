@@ -53,6 +53,8 @@ export const CLI_MSG = {
 export const MG_LINK_BUFFER_SIZE = 0x400;
 export const MG_BLOCK_BYTES = 252;
 export const WONDER_CARD_BYTES = 332;
+// The Japanese games' Wonder Card, with shorter texts.
+export const JAPANESE_WONDER_CARD_BYTES = 164;
 export const RAM_SCRIPT_BYTES = 995;
 export const GAME_DATA_BYTES = 100;
 
@@ -225,6 +227,10 @@ export function gameOfCode(code) {
   return GAMES[code.slice(0, 3)] ?? null;
 }
 
+export function isJapanese(game) {
+  return game?.gameCode?.[3] === 'J';
+}
+
 export function describeGameCode(code) {
   const name = GAME_NAMES[code.slice(0, 3)];
   if (!name) return code;
@@ -313,7 +319,7 @@ export class WonderCardServer {
     if (!game.valid) return this.end('cant-accept', CLIENT_SCRIPTS.cantAccept, game);
     const payload = this.payload(game);
     if (!payload) return this.end('unsupported', CLIENT_SCRIPTS.cantAccept, game);
-    const card = payload.card.subarray(0, WONDER_CARD_BYTES);
+    const card = payload.card;
     const ramScript = payload.script;
 
     const flagId = cardFlagId(card);

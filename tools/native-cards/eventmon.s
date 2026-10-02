@@ -35,10 +35,13 @@
 @ On cards with several Pokémon, `offer` puts the species of Pokémon
 @ VAR_0x8004 in VAR_0x8006, with VAR_RESULT 1, or 0 past the last.
 @
+@ The Japanese games name every Pokémon in Japanese: there a distribution
+@ that was not Japanese gives an English Pokémon with its English name.
+@
 @ Parameters (--defsym): EVENT (below), PARTY, PARTY_COUNT, ENEMY_PARTY,
 @ SPECIAL_VAR_8004, SPECIAL_VAR_RESULT, RANDOM, CREATE_MON, SET_MON_DATA,
 @ SET_MON_MOVE_SLOT, CALCULATE_STATS, SEND_MON_TO_PC, SPECIES_TO_NATIONAL,
-@ GET_SET_POKEDEX_FLAG and SPECIES_INFO.
+@ GET_SET_POKEDEX_FLAG, SPECIES_INFO and JAPANESE (1 on the Japanese games).
 
     .syntax unified
     .thumb
@@ -75,31 +78,43 @@
     .equ F_JAPANESE, 2048               @ Japanese, named jp_name
     .equ F_OT_FEMALE, 4096
     .equ F_MET_LEVEL_0, 8192
+    .equ F_ENGLISH, 16384               @ English: an English-only distribution
 
 @ ---- the distributions (PKHeX EncountersWC3): trainer id (secret id 0),
 @ level, flags and how many Pokémon; the OT names and the Pokémon are below
 .if EVENT == EVENT_WISHMKR_JIRACHI
     .equ TID, 20043
     .equ LEVEL, 5
-    .equ FLAGS, F_WISHMKR_ITEM
+    .equ FLAGS, F_WISHMKR_ITEM | F_ENGLISH
     .equ MONS, 1
 .endif
 .if EVENT == EVENT_10_ANIV_CELEBI       @ Journey Across America
     .equ TID, 10
     .equ LEVEL, 70
-    .equ FLAGS, F_ANTI_SHINY | F_GENDER_BIT7
+    .equ FLAGS, F_ANTI_SHINY | F_GENDER_BIT7 | F_ENGLISH
     .equ MONS, 1
 .endif
 .if EVENT >= EVENT_10_ANIV_KANTO && EVENT <= EVENT_10_ANIV_JOHTO_HOENN
     .equ TID, 6808                      @ Party of the Decade
     .equ LEVEL, 70
-    .equ FLAGS, F_ANTI_SHINY | F_GENDER_BIT7
+    .equ FLAGS, F_ANTI_SHINY | F_GENDER_BIT7 | F_ENGLISH
 .endif
 .if EVENT == EVENT_10_ANIV_KANTO || EVENT == EVENT_10_ANIV_JOHTO_HOENN
     .equ MONS, 6
 .endif
 .if EVENT == EVENT_10_ANIV_LEGENDS
     .equ MONS, 8
+.endif
+.if JAPANESE == 0
+.if EVENT == EVENT_10_ANIV_KANTO
+    .equ EN_NAMES, 6
+.endif
+.if EVENT == EVENT_10_ANIV_LEGENDS
+    .equ EN_NAMES, 3
+.endif
+.if EVENT == EVENT_10_ANIV_JOHTO_HOENN
+    .equ EN_NAMES, 5
+.endif
 .endif
 .if EVENT == EVENT_DOEL_DEOXYS
     .equ TID, 28606
@@ -109,7 +124,7 @@
 .endif
 .if EVENT == EVENT_DOEL_DEOXYS || EVENT == EVENT_SPACE_C_DEOXYS
     .equ LEVEL, 70
-    .equ FLAGS, F_ANTI_SHINY | F_GENDER_BIT7 | F_FATEFUL
+    .equ FLAGS, F_ANTI_SHINY | F_GENDER_BIT7 | F_FATEFUL | F_ENGLISH
     .equ MONS, 1
 .endif
 .if EVENT == EVENT_AURA_MEW
@@ -121,13 +136,13 @@
 .if EVENT == EVENT_MYSTRY_MEW
     .equ TID, 6930
     .equ LEVEL, 10
-    .equ FLAGS, F_ANTI_SHINY | F_GENDER_DIV3 | F_FATEFUL | F_MYSTRY_SEEDS
+    .equ FLAGS, F_ANTI_SHINY | F_GENDER_DIV3 | F_FATEFUL | F_MYSTRY_SEEDS | F_ENGLISH
     .equ MONS, 1
 .endif
 .if EVENT == EVENT_ROCKS_METANG
     .equ TID, 2005
     .equ LEVEL, 30
-    .equ FLAGS, F_ANTI_SHINY | F_NATIONAL_RIBBON
+    .equ FLAGS, F_ANTI_SHINY | F_NATIONAL_RIBBON | F_ENGLISH
     .equ MONS, 1
 .endif
 .if EVENT == EVENT_CHANNEL_JIRACHI      @ the secret id comes from the calls
@@ -158,7 +173,7 @@
 .if EVENT == EVENT_MATTLE_HO_OH
     .equ TID, 10048
     .equ LEVEL, 70
-    .equ FLAGS, F_SEED_32 | F_CXD
+    .equ FLAGS, F_SEED_32 | F_CXD | F_ENGLISH
     .equ MONS, 1
     .equ MET_GAME, VERSION_SAPPHIRE
 .endif
@@ -185,6 +200,7 @@
     .equ VERSION_SAPPHIRE, 1
     .equ VERSION_RUBY, 2
     .equ LANGUAGE_JAPANESE, 1
+    .equ LANGUAGE_ENGLISH, 2
     .equ SPECIES_INFO_SIZE, 28
     .equ EGG_CYCLES, 17                 @ in gSpeciesInfo
     .equ MON_GIVEN_TO_PARTY, 0
@@ -203,6 +219,17 @@
 .endif
 .ifndef OT_ID_TYPE
     .equ OT_ID_TYPE, OT_ID_PRESET
+.endif
+.if (FLAGS & F_ENGLISH) || (JAPANESE && (FLAGS & F_JAPANESE) == 0)
+    .equ ENGLISH, 1
+.else
+    .equ ENGLISH, 0
+.endif
+.if JAPANESE && ENGLISH                 @ every name in English
+    .equ EN_NAMES, MONS
+.endif
+.ifndef EN_NAMES                        @ the first Pokémon whose name some language spells
+    .equ EN_NAMES, 0                    @ another way, in en_names
 .endif
 
 give_mon:
@@ -465,6 +492,22 @@ give_mon:
     movs r1, #MON_DATA_NICKNAME
     bl set_data
 .endif
+.if ENGLISH                             @ in every language's game, as PKHeX knows these;
+    movs r0, #LANGUAGE_ENGLISH          @ the name the game gave is the English one
+    movs r1, #MON_DATA_LANGUAGE         @ unless en_names has it
+    bl set_value
+.if EN_NAMES
+    adr r0, mons
+    subs r2, r4, r0                     @ the entry's offset: a name is as long as an entry
+    cmp r2, #EN_NAMES * ENTRY_SIZE
+    bcs 1f
+    adr r0, en_names
+    adds r2, r0, r2
+    movs r1, #MON_DATA_NICKNAME
+    bl set_data
+1:
+.endif
+.endif
 .if FLAGS & F_EGG
     ldrh r0, [r4]
     movs r1, #SPECIES_INFO_SIZE
@@ -625,7 +668,9 @@ p_var_8004:            .word SPECIAL_VAR_8004
 p_released_seed:       .word MYSTRY_RELEASED_SEED
 .endif
 
-@ ---- the OT name (7 characters, EOS), then the Pokémon: species and moves
+@ ---- the OT name (7 characters, EOS), then the Pokémon: species and moves.
+@ COLOSSEUM's Japanese gifts end their names with zeros after the terminator,
+@ as the GameCube writes them.
 ot_name:
 .if EVENT == EVENT_WISHMKR_JIRACHI
     .byte 0xD1, 0xC3, 0xCD, 0xC2, 0xC7, 0xC5, 0xCC, 0xFF           @ WISHMKR
@@ -646,6 +691,14 @@ mons:
     .hword 25, 85, 87, 113, 19          @ PIKACHU: THUNDERBOLT, THUNDER, LIGHT SCREEN, FLY
     .hword 65, 248, 347, 94, 271        @ ALAKAZAM: FUTURE SIGHT, CALM MIND, PSYCHIC, TRICK
     .hword 149, 97, 219, 17, 200        @ DRAGONITE: AGILITY, SAFEGUARD, WING ATTACK, OUTRAGE
+    .align 2
+en_names:
+    .byte 0xBC, 0xCF, 0xC6, 0xBC, 0xBB, 0xCD, 0xBB, 0xCF, 0xCC, 0xFF   @ BULBASAUR
+    .byte 0xBD, 0xC2, 0xBB, 0xCC, 0xC3, 0xD4, 0xBB, 0xCC, 0xBE, 0xFF   @ CHARIZARD
+    .byte 0xBC, 0xC6, 0xBB, 0xCD, 0xCE, 0xC9, 0xC3, 0xCD, 0xBF, 0xFF   @ BLASTOISE
+    .byte 0xCA, 0xC3, 0xC5, 0xBB, 0xBD, 0xC2, 0xCF, 0xFF, 0xFF, 0xFF   @ PIKACHU
+    .byte 0xBB, 0xC6, 0xBB, 0xC5, 0xBB, 0xD4, 0xBB, 0xC7, 0xFF, 0xFF   @ ALAKAZAM
+    .byte 0xBE, 0xCC, 0xBB, 0xC1, 0xC9, 0xC8, 0xC3, 0xCE, 0xBF, 0xFF   @ DRAGONITE
 .endif
 .if EVENT == EVENT_10_ANIV_LEGENDS
     .hword 144, 97, 170, 58, 115        @ ARTICUNO: AGILITY, MIND READER, ICE BEAM, REFLECT
@@ -656,6 +709,18 @@ mons:
     .hword 245, 16, 62, 54, 243         @ SUICUNE: GUST, AURORA BEAM, MIST, MIRROR COAT
     .hword 407, 296, 94, 105, 204       @ LATIAS: MIST BALL, PSYCHIC, RECOVER, CHARM
     .hword 408, 295, 94, 105, 349       @ LATIOS: LUSTER PURGE, PSYCHIC, RECOVER, DRAGON DANCE
+    .align 2
+en_names:
+    .byte 0xBB, 0xCC, 0xCE, 0xC3, 0xBD, 0xCF, 0xC8, 0xC9, 0xFF, 0xFF   @ ARTICUNO
+    .byte 0xD4, 0xBB, 0xCA, 0xBE, 0xC9, 0xCD, 0xFF, 0xFF, 0xFF, 0xFF   @ ZAPDOS
+    .byte 0xC7, 0xC9, 0xC6, 0xCE, 0xCC, 0xBF, 0xCD, 0xFF, 0xFF, 0xFF   @ MOLTRES
+.if JAPANESE
+    .byte 0xCC, 0xBB, 0xC3, 0xC5, 0xC9, 0xCF, 0xFF, 0xFF, 0xFF, 0xFF   @ RAIKOU
+    .byte 0xBF, 0xC8, 0xCE, 0xBF, 0xC3, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF   @ ENTEI
+    .byte 0xCD, 0xCF, 0xC3, 0xBD, 0xCF, 0xC8, 0xBF, 0xFF, 0xFF, 0xFF   @ SUICUNE
+    .byte 0xC6, 0xBB, 0xCE, 0xC3, 0xBB, 0xCD, 0xFF, 0xFF, 0xFF, 0xFF   @ LATIAS
+    .byte 0xC6, 0xBB, 0xCE, 0xC3, 0xC9, 0xCD, 0xFF, 0xFF, 0xFF, 0xFF   @ LATIOS
+.endif
 .endif
 .if EVENT == EVENT_10_ANIV_JOHTO_HOENN
     .hword 157, 98, 172, 129, 53        @ TYPHLOSION: QUICK ATTACK, FLAME WHEEL, SWIFT, FLAMETHROWER
@@ -664,6 +729,16 @@ mons:
     .hword 248, 37, 184, 242, 89        @ TYRANITAR: THRASH, SCARY FACE, CRUNCH, EARTHQUAKE
     .hword 282, 299, 163, 119, 327      @ BLAZIKEN: BLAZE KICK, SLASH, MIRROR MOVE, SKY UPPERCUT
     .hword 376, 104, 163, 248, 195      @ ABSOL: DOUBLE TEAM, SLASH, FUTURE SIGHT, PERISH SONG
+    .align 2
+en_names:
+    .byte 0xCE, 0xD3, 0xCA, 0xC2, 0xC6, 0xC9, 0xCD, 0xC3, 0xC9, 0xC8   @ TYPHLOSION
+    .byte 0xBF, 0xCD, 0xCA, 0xBF, 0xC9, 0xC8, 0xFF, 0xFF, 0xFF, 0xFF   @ ESPEON
+    .byte 0xCF, 0xC7, 0xBC, 0xCC, 0xBF, 0xC9, 0xC8, 0xFF, 0xFF, 0xFF   @ UMBREON
+    .byte 0xCE, 0xD3, 0xCC, 0xBB, 0xC8, 0xC3, 0xCE, 0xBB, 0xCC, 0xFF   @ TYRANITAR
+    .byte 0xBC, 0xC6, 0xBB, 0xD4, 0xC3, 0xC5, 0xBF, 0xC8, 0xFF, 0xFF   @ BLAZIKEN
+.if JAPANESE
+    .byte 0xBB, 0xBC, 0xCD, 0xC9, 0xC6, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF   @ ABSOL
+.endif
 .endif
 .if EVENT == EVENT_DOEL_DEOXYS
     .byte 0xBE, 0xC9, 0xBF, 0xC6, 0xFF, 0xFF, 0xFF, 0xFF           @ DOEL
@@ -720,24 +795,46 @@ jp_name:
     .byte 0x60, 0x6F, 0x8B, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF   @ タマゴ
 .endif
 .if EVENT == EVENT_COLOSSEUM_PIKACHU
-    .byte 0x5A, 0x7B, 0x5C, 0x51, 0x71, 0xFF, 0xFF, 0xFF           @ コロシアム
+    .byte 0x5A, 0x7B, 0x5C, 0x51, 0x71, 0xFF, 0x00, 0x00           @ コロシアム
 mons:
     .hword 25, 84, 45, 39, 86           @ PIKACHU: THUNDERSHOCK, GROWL, TAIL WHIP, THUNDER WAVE
     .align 2
 jp_name:
-    .byte 0x9C, 0x56, 0x61, 0x85, 0x53, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF   @ ピカチュウ
+    .byte 0x9C, 0x56, 0x61, 0x85, 0x53, 0xFF, 0x00, 0x00, 0x00, 0x00   @ ピカチュウ
 .endif
 .if EVENT == EVENT_AGETO_CELEBI
-    .byte 0x51, 0x8A, 0x64, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF           @ アゲト
+    .byte 0x51, 0x8A, 0x64, 0xFF, 0x00, 0x00, 0x00, 0x00           @ アゲト
 mons:
     .hword 251, 93, 105, 215, 219       @ CELEBI: CONFUSION, RECOVER, HEAL BELL, SAFEGUARD
     .align 2
 jp_name:
-    .byte 0x5E, 0x7A, 0x97, 0x80, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF   @ セレビィ
+    .byte 0x5E, 0x7A, 0x97, 0x80, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00   @ セレビィ
 .endif
 .if EVENT == EVENT_MATTLE_HO_OH
     .byte 0xC7, 0xBB, 0xCE, 0xCE, 0xC6, 0xBF, 0xFF, 0xFF           @ MATTLE
 mons:
     .hword 250, 105, 126, 241, 129      @ HO-OH: RECOVER, FIRE BLAST, SUNNY DAY, SWIFT
+.endif
+.if JAPANESE && ENGLISH && MONS == 1    @ the one Pokémon's English name
+    .align 2
+en_names:
+.if EVENT == EVENT_WISHMKR_JIRACHI || EVENT == EVENT_CHANNEL_JIRACHI
+    .byte 0xC4, 0xC3, 0xCC, 0xBB, 0xBD, 0xC2, 0xC3, 0xFF, 0xFF, 0xFF   @ JIRACHI
+.endif
+.if EVENT == EVENT_10_ANIV_CELEBI
+    .byte 0xBD, 0xBF, 0xC6, 0xBF, 0xBC, 0xC3, 0xFF, 0xFF, 0xFF, 0xFF   @ CELEBI
+.endif
+.if EVENT == EVENT_DOEL_DEOXYS || EVENT == EVENT_SPACE_C_DEOXYS
+    .byte 0xBE, 0xBF, 0xC9, 0xD2, 0xD3, 0xCD, 0xFF, 0xFF, 0xFF, 0xFF   @ DEOXYS
+.endif
+.if EVENT == EVENT_AURA_MEW || EVENT == EVENT_MYSTRY_MEW
+    .byte 0xC7, 0xBF, 0xD1, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF   @ MEW
+.endif
+.if EVENT == EVENT_ROCKS_METANG
+    .byte 0xC7, 0xBF, 0xCE, 0xBB, 0xC8, 0xC1, 0xFF, 0xFF, 0xFF, 0xFF   @ METANG
+.endif
+.if EVENT == EVENT_MATTLE_HO_OH
+    .byte 0xC2, 0xC9, 0xAE, 0xC9, 0xC2, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF   @ HO-OH
+.endif
 .endif
     .align 2

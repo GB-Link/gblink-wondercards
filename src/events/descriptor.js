@@ -15,6 +15,7 @@ export function createEventDescriptor(partial = {}) {
     game: 'game' in partial ? partial.game : 'emerald',
     roms: partial.roms ?? null,
     variants: partial.variants ?? null,
+    japanese: partial.japanese ?? false,
   };
 }
 
@@ -30,18 +31,30 @@ export function identityFromEvent(event) {
 
 const LANGUAGES = { E: 'English', F: 'French', D: 'German', I: 'Italian', S: 'Spanish', J: 'Japanese' };
 
-// The games an event runs on, FireRed/LeafGreen first, and the language it
-// requires, if any. With no event, all games.
+// The games an event runs on, FireRed/LeafGreen first, the language it
+// requires, if any, and whether the Japanese games are among them. With no
+// event, or one for no game in particular, all games.
 export function eventGames(event) {
-  if (!event) return { games: ['frlg', 'emerald'], language: null };
+  if (!event) return { games: ['frlg', 'emerald'], language: null, japanese: true };
+  const single = event.game === null ? { frlg: true, emerald: true } : { [event.game ?? 'emerald']: true };
   const games = new Set(event.roms
     ? event.roms.map((rom) => (rom.startsWith('BPE') ? 'emerald' : 'frlg'))
-    : Object.keys(event.variants ?? { [event.game ?? 'emerald']: true }));
+    : Object.keys(event.variants ?? single));
   const languages = new Set((event.roms ?? []).map((rom) => rom[3]));
   return {
     games: ['frlg', 'emerald'].filter((game) => games.has(game)),
     language: languages.size === 1 ? LANGUAGES[[...languages][0]] ?? null : null,
+    japanese: eventLanguages(event).japanese,
   };
+}
+
+// Whether an event has Wonder Cards for the Japanese games and for the others, which
+// lay their cards out differently: a payload keyed by a Japanese ROM is theirs, one
+// keyed by game is the others'.
+export function eventLanguages(event) {
+  if (!event.variants) return { japanese: Boolean(event.japanese), international: !event.japanese };
+  const keys = Object.keys(event.variants);
+  return { japanese: keys.some((key) => key[3] === 'J'), international: keys.some((key) => key[3] !== 'J') };
 }
 
 // "FireRed, LeafGreen, or Emerald", "FireRed or LeafGreen" or "Emerald",

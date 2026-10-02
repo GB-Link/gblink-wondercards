@@ -9,11 +9,16 @@
 @ menu either (L still does). The hook is copied to RESIDENT like the
 @ others, so it lasts until the game is reset; `uninstall` turns it off and
 @ gives R back to the Help menu.
+@ The field puts away the banner with a new map's name whenever it starts
+@ a script; this one starts outside the field's input handling, so it puts
+@ the banner away itself, or the banner would keep scrolling BG0 under the
+@ PC's menu.
 @
 @ Parameters (--defsym): INTR_VBLANK, MAIN, PLAYER_AVATAR, CONTROLS_LOCKED
 @ (sLockFieldControls), SCRIPT_STATUS (sGlobalScriptContextStatus),
 @ HELP_R_DISABLE and QUEST_LOG_STATE (0 if none), MAP_HEADER, CB1_OVERWORLD,
-@ CB2_OVERWORLD, IN_UNION_ROOM, SETUP_SCRIPT, PC_SPECIAL, EMERALD and STATE.
+@ CB2_OVERWORLD, IN_UNION_ROOM, SETUP_SCRIPT, HIDE_MAP_NAME, PC_SPECIAL,
+@ EMERALD and STATE.
 
     .syntax unified
     .thumb
@@ -169,6 +174,8 @@ r_in_union_room:   .word IN_UNION_ROOM
 r_setup_script:    .word SETUP_SCRIPT
 r_pc_script:       .word RESIDENT + (pc_script - resident)
 pc_script:
+    .byte 0x23                          @ callnative: the map name banner away
+    .4byte HIDE_MAP_NAME
     .byte 0x69                          @ lockall
     .byte 0x2F, SE_PC_LOGIN, 0          @ playse
     .byte 0x25, PC_SPECIAL & 0xFF, PC_SPECIAL >> 8   @ special ShowPokemonStorageSystemPC

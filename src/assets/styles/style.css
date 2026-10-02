@@ -93,6 +93,7 @@ body[data-phase='complete'] .title-bar {
 }
 
 .panel label,
+.panel summary,
 .instruction-label,
 .log-label {
   display: block;
@@ -104,7 +105,8 @@ body[data-phase='complete'] .title-bar {
   margin-bottom: 0.5rem;
 }
 
-#event-select {
+#event-select,
+#wc3-game {
   width: 100%;
   padding: 0.6rem 2rem 0.6rem 0.75rem;
   font: inherit;
@@ -119,7 +121,8 @@ body[data-phase='complete'] .title-bar {
   background-position: right 0.75rem center;
 }
 
-#event-select:focus {
+#event-select:focus,
+#wc3-game:focus {
   outline: none;
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--cursor) 35%, transparent);
 }
@@ -128,6 +131,47 @@ body[data-phase='complete'] .title-bar {
   font-weight: 800;
   font-style: normal;
   color: var(--bar);
+}
+
+#wc3-game {
+  flex: 1;
+  min-width: 0;
+}
+
+.panel-block {
+  margin-top: 1rem;
+}
+
+.panel summary { margin-bottom: 0; }
+
+.panel details[open] summary { margin-bottom: 0.5rem; }
+
+.panel-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.panel-row button {
+  padding: 0.55rem 0.8rem;
+  font-size: 0.8rem;
+}
+
+.panel-hint {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.panel-note {
+  margin: 0.5rem 0 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--error);
+}
+
+body[data-dropping] #event-panel {
+  border-color: var(--accent);
+  box-shadow: 4px 4px 0 var(--accent);
 }
 
 .status-panel {
@@ -274,6 +318,8 @@ body[data-phase='complete'] .title-bar {
 }
 
 .unlock-box { display: block; }
+
+.unlock-box[hidden] { display: none; }
 
 .unlock-box summary {
   display: flex;

@@ -1,16 +1,19 @@
 #!/usr/bin/env node
-// Writes roms.mjs, the addresses the cards use in each English ROM, from the
-// symbol tables of pret's pokeemerald and pokefirered builds (`make`, and
-// `make firered_rev1 leafgreen leafgreen_rev1` for pokefirered).
+// Writes roms.mjs, the addresses the cards use in each ROM. The English ROMs'
+// come from the symbol tables of pret's pokeemerald and pokefirered builds
+// (`make`, and `make firered_rev1 leafgreen leafgreen_rev1` for pokefirered);
+// every further ROM given, another language's FireRed, LeafGreen or Emerald,
+// gets them from port-symbols.mjs, which finds the English 1.0 build's code in it.
 //
-//   node tools/native-cards/rom-symbols.mjs <pokeemerald dir> <pokefirered dir>
+//   node tools/native-cards/rom-symbols.mjs <pokeemerald dir> <pokefirered dir> [<ROM>...]
 //
 // Needs arm-none-eabi-nm on PATH. Routines get the Thumb bit.
 
 import { execFileSync } from 'node:child_process';
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { EnglishBuild, portSymbols } from './port-symbols.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -23,7 +26,8 @@ const ROMS = {
 };
 
 // Name in the card sources: [symbol, offset] for data, [symbol, 0, 'fn'] for
-// routines, or { emerald, frlg } when the games name it differently. A name
+// routines, or { emerald, frlg } when the games name it differently, with
+// `japanese` for what the Japanese ROMs do with another routine. A name
 // missing from a game's build is 0 there.
 const SYMBOLS = {
   // RAM
@@ -73,6 +77,9 @@ const SYMBOLS = {
   EXP_SHARE_EXP: ['gExpShareExp'],
   BATTLE_SCRIPTING: ['gBattleScripting'],
   BATTLE_TYPE: ['gBattleTypeFlags'],
+  BATTLE_OUTCOME: ['gBattleOutcome'],
+  BATTLE_MAIN_FUNC: ['gBattleMainFunc'],
+  CHOSEN_ACTIONS: ['gChosenActionByBattler'],
   QUEST_LOG_STATE: { frlg: ['gQuestLogState'] },
   // ROM data
   NATURE_NAMES: ['gNatureNamePointers'],
@@ -105,6 +112,7 @@ const SYMBOLS = {
   RUN_TEXT_PRINTERS: ['RunTextPrinters', 0, 'fn'],
   CB1_OVERWORLD: ['CB1_Overworld', 0, 'fn'],
   CB2_OVERWORLD: ['CB2_Overworld', 0, 'fn'],
+  SET_TURN_ORDER: ['SetActionsAndBattlersTurnOrder', 0, 'fn'],
   BATTLE_CB1: ['BattleMainCB1', 0, 'fn'],
   BATTLE_CB2: ['BattleMainCB2', 0, 'fn'],
   RETURN_TO_FIELD: ['CB2_ReturnToFieldContinueScript', 0, 'fn'],
@@ -162,8 +170,10 @@ const SYMBOLS = {
   // the multichoice box (menu.inc)
   CREATE_WINDOW_FROM_RECT: ['CreateWindowFromRect', 0, 'fn'],
   WINDOW_BORDER: { emerald: ['SetStandardWindowBorderStyle', 0, 'fn'], frlg: ['SetStdWindowBorderStyle', 0, 'fn'] },
-  PRINT_MENU_ITEMS: { emerald: ['PrintMenuTable', 0, 'fn'], frlg: ['MultichoiceList_PrintItems', 0, 'fn'] },
-  INIT_MENU_CURSOR: { emerald: ['InitMenuInUpperLeftCornerNormal', 0, 'fn'], frlg: ['Menu_InitCursor', 0, 'fn'] },
+  PRINT_MENU_ITEMS: { emerald: ['PrintMenuTable', 0, 'fn'], frlg: ['MultichoiceList_PrintItems', 0, 'fn'],
+    japanese: { emerald: ['PrintMenuActionTextsWithSpacing', 0, 'fn'] } },
+  INIT_MENU_CURSOR: { emerald: ['InitMenuInUpperLeftCornerNormal', 0, 'fn'], frlg: ['Menu_InitCursor', 0, 'fn'],
+    japanese: { emerald: ['InitMenuNormal', 0, 'fn'] } },
   MULTICHOICE_TASK: { emerald: ['InitMultichoiceCheckWrap', 0, 'fn'], frlg: ['CreateMCMenuInputHandlerTask', 0, 'fn'] },
   SCHEDULE_BG_COPY: ['ScheduleBgCopyTilemapToVram', 0, 'fn'],
   DAYCARE_COMPATIBILITY: ['GetDaycareCompatibilityScore', 0, 'fn'],
@@ -192,12 +202,22 @@ const SYMBOLS = {
   BERRY_TREE_TIME_UPDATE: { emerald: ['BerryTreeTimeUpdate', 0, 'fn'] },
 };
 
-const [emeraldDir, frlgDir] = process.argv.slice(2);
+const [emeraldDir, frlgDir, ...otherRoms] = process.argv.slice(2);
 if (!emeraldDir || !frlgDir) {
-  console.error('usage: rom-symbols.mjs <pokeemerald dir> <pokefirered dir>');
+  console.error('usage: rom-symbols.mjs <pokeemerald dir> <pokefirered dir> [<ROM>...]');
   process.exit(1);
 }
 const dirs = { emerald: emeraldDir, frlg: frlgDir };
+// The English 1.0 build another language's ROM is found from, by game letter.
+const ENGLISH_BASE = {
+  E: ['emerald', 'pokeemerald'],
+  R: ['frlg', 'pokefirered'],
+  G: ['frlg', 'pokeleafgreen'],
+};
+
+// A name's [symbol, offset, kind] in a game and language.
+const resolve = (spec, family, language) =>
+  (language === 'J' && spec.japanese?.[family]) || (Array.isArray(spec) ? spec : spec[family]);
 
 function symbolTable(path) {
   const table = new Map();
@@ -213,21 +233,47 @@ for (const [id, rom] of Object.entries(ROMS)) {
   const table = symbolTable(join(dirs[rom.elf[0]], rom.elf[1]));
   const symbols = {};
   for (const [name, spec] of Object.entries(SYMBOLS)) {
-    const [symbol, offset = 0, kind] = (Array.isArray(spec) ? spec : spec[rom.family]) ?? [];
+    const [symbol, offset = 0, kind] = resolve(spec, rom.family, 'E') ?? [];
     const address = symbol && table.get(symbol);
     symbols[name] = address === undefined || !symbol ? 0 : address + offset + (kind === 'fn' ? 1 : 0);
   }
   symbols.EMERALD = rom.family === 'emerald' ? 1 : 0;
-  out[id] = { family: rom.family, game: rom.game, revision: rom.revision, symbols };
+  symbols.JAPANESE = 0;
+  out[id] = { family: rom.family, game: rom.game, language: 'E', revision: rom.revision, symbols };
+}
+
+const builds = {};
+for (const path of otherRoms) {
+  const rom = readFileSync(path);
+  const code = rom.subarray(0xac, 0xb0).toString('latin1');
+  const revision = rom[0xbc];
+  const id = `${code} 1.${revision}`;
+  const [family, base] = ENGLISH_BASE[code[2]] ?? [];
+  if (!code.startsWith('BP') || !family) throw new Error(`${path}: ${code} is not FireRed, LeafGreen or Emerald`);
+  builds[base] ??= new EnglishBuild(join(dirs[family], `${base}.elf`), readFileSync(join(dirs[family], `${base}.gba`)));
+  const wanted = {};
+  for (const [name, spec] of Object.entries(SYMBOLS)) {
+    const resolved = resolve(spec, family, code[3]);
+    if (resolved) wanted[name] = resolved;
+  }
+  const { symbols: found, missing } = portSymbols(builds[base], rom, wanted);
+  if (missing.length) throw new Error(`${id}: could not place ${missing.join(', ')}`);
+  const symbols = {};
+  for (const name of Object.keys(SYMBOLS)) symbols[name] = found[name] ?? 0;
+  symbols.EMERALD = family === 'emerald' ? 1 : 0;
+  symbols.JAPANESE = code[3] === 'J' ? 1 : 0;
+  out[id] = { family, game: code[2], language: code[3], revision, symbols };
+  console.log(`${id}: ${Object.keys(found).length} addresses`);
 }
 
 const hex = (value) => `0x${value.toString(16).padStart(8, '0')}`;
 const body = Object.entries(out).map(([id, rom]) => {
   const symbols = Object.entries(rom.symbols).map(([name, value]) => `      ${name}: ${hex(value)},`).join('\n');
-  return `  '${id}': {\n    family: '${rom.family}', game: '${rom.game}', revision: ${rom.revision},\n    symbols: {\n${symbols}\n    },\n  },`;
+  return `  '${id}': {\n    family: '${rom.family}', game: '${rom.game}', language: '${rom.language}', revision: ${rom.revision},\n    symbols: {\n${symbols}\n    },\n  },`;
 }).join('\n');
-writeFileSync(join(HERE, 'roms.mjs'), `// Written by rom-symbols.mjs from pret's pokeemerald and pokefirered builds.
-// Addresses the cards use in each English ROM; routines carry the Thumb bit.
+writeFileSync(join(HERE, 'roms.mjs'), `// Written by rom-symbols.mjs from pret's pokeemerald and pokefirered builds,
+// and for the other languages from the ROMs themselves. Addresses the cards
+// use in each ROM; routines carry the Thumb bit.
 
 export const ROMS = {
 ${body}

@@ -44,6 +44,7 @@ export const youpileoufMysteryEventFra = createEventDescriptor({
   description: 'Unlocks Mystery Event on French Emerald, the option the game uses to read e-Reader cards. The deliveryman asks you to save; after that, Mystery Event is on the main menu.',
   ...identityFor(LANGUAGE_FRENCH),
   payloadBytes: YOUPILEOUF_FRA_TICKET_PAYLOAD,
+  roms: ['BPEF 1.0'],
   guideSteps: guide('RELIE TOUS TES AMIS', 'Cadeau Myst.'),
 });
 
@@ -54,5 +55,6 @@ export const youpileoufMysteryEventGer = createEventDescriptor({
   description: 'Unlocks Mystery Event on German Emerald, the option the game uses to read e-Reader cards. The deliveryman asks you to save; after that, Mystery Event is on the main menu.',
   ...identityFor(LANGUAGE_GERMAN),
   payloadBytes: YOUPILEOUF_GER_TICKET_PAYLOAD,
+  roms: ['BPED 1.0'],
   guideSteps: guide('VERBINDUNG MIT ALLEN', 'Geheimgeschenk'),
 });

@@ -3,15 +3,18 @@
 // librfu leader runs once a GBA has joined, then the Mystery Gift exchange.
 // Frames in and out, ticked once per GBA frame by the caller.
 
-import { CMD, Distributor, beaconData } from './distributor.js';
+import { CMD, Distributor, RFU_SERIAL_JOY_SPOT, beaconData } from './distributor.js';
 import {
+  JAPANESE_WONDER_CARD_BYTES,
   MysteryGiftError,
   PAYLOAD_SCRIPT_OFFSET,
   WONDER_CARD_BYTES,
   WonderCardServer,
   gameOfCode,
+  isJapanese,
   romId,
 } from './mystery-gift.js';
+import { decodeGameText } from './text.js';
 
 // Frames to wait after the GBA's first linked frame before sending player ids,
 // so its player exchange task has reset its receive state.
@@ -33,24 +36,20 @@ const GAME_FREAK = 'GameFreak inc.';
 
 const VERSIONS = { 1: 'Sapphire', 2: 'Ruby', 3: 'Emerald', 4: 'FireRed', 5: 'LeafGreen' };
 
-const CHARSET = (() => {
-  const map = new Map([[0x00, ' '], [0xab, '!'], [0xac, '?'], [0xad, '.'], [0xae, '-'], [0xb0, '…'],
-    [0xb5, '♂'], [0xb6, '♀'], [0xb8, ','], [0xba, '/']]);
-  for (let i = 0; i < 26; i++) {
-    map.set(0xbb + i, String.fromCharCode(65 + i));
-    map.set(0xd5 + i, String.fromCharCode(97 + i));
-  }
-  for (let i = 0; i < 10; i++) map.set(0xa1 + i, String(i));
-  return map;
-})();
+const LANGUAGE_JAPANESE = 1;
 
-export function decodeName(bytes) {
-  let name = '';
-  for (const b of bytes) {
-    if (b === 0xff) break;
-    name += CHARSET.get(b) ?? '';
-  }
-  return name.trim();
+// The parents an event shows a searching GBA: the international games look for
+// the Wonder Distributor's serial, the Japanese games only for their Joy Spot's.
+// Both show whatever the event has cards for, so that any game links and hears
+// from the page when nothing of it is for that game.
+export function eventBeacons(event) {
+  const gnameBytes = Uint8Array.from(event.gnameBytes);
+  gnameBytes[0] = (gnameBytes[0] & 0xf0) | LANGUAGE_JAPANESE;
+  return [beaconData(event), beaconData({ ...event, serialNo: RFU_SERIAL_JOY_SPOT, gnameBytes })];
+}
+
+export function decodeName(bytes, japanese = false) {
+  return decodeGameText(bytes, japanese).trim();
 }
 
 function put16(bytes, at, value) {
@@ -90,11 +89,11 @@ export function linkPlayerBlock({ gnameBytes, unameBytes }) {
 export function readLinkPlayer(block) {
   if (block.length < 60 || !magicAt(block, 0) || !magicAt(block, 44)) return null;
   const version = block[16];
-  const language = u16(block, 42);
+  const japanese = u16(block, 42) === LANGUAGE_JAPANESE;
   return {
     version: VERSIONS[version] ?? null,
-    japanese: language === 1,
-    name: language === 1 ? '' : decodeName(block.subarray(24, 32)),
+    japanese,
+    name: decodeName(block.subarray(24, 32), japanese),
   };
 }
 
@@ -102,14 +101,22 @@ export function readLinkPlayer(block) {
 // the event's one payload, or its list for that ROM or game when it has them
 // (event.variants, keyed by ROM id like 'BPRE 1.1' or by game). Empty when
 // nothing of it runs there, or when the event lists the ROMs it runs on
-// (event.roms) and this is not one of them.
+// (event.roms) and this is not one of them. The Japanese games lay their
+// Wonder Cards out otherwise: they take only their ROM's own payloads, or an
+// event's one payload made for them (event.japanese), and the others never
+// those.
 export function eventPayloads(event, game) {
   if (event.roms && !(game && event.roms.includes(romId(game)))) return [];
-  const all = event.variants
-    ? (game && (event.variants[romId(game)] ?? event.variants[gameOfCode(game.gameCode)])) ?? []
-    : [event.payloadBytes];
+  const japanese = isJapanese(game);
+  let all;
+  if (event.variants) {
+    all = (game && (event.variants[romId(game)] ?? (japanese ? null : event.variants[gameOfCode(game.gameCode)]))) ?? [];
+  } else {
+    all = Boolean(event.japanese) === japanese ? [event.payloadBytes] : [];
+  }
+  const cardBytes = japanese ? JAPANESE_WONDER_CARD_BYTES : WONDER_CARD_BYTES;
   return all.map((bytes) => ({
-    card: bytes.subarray(0, WONDER_CARD_BYTES),
+    card: bytes.subarray(0, cardBytes),
     script: bytes.subarray(PAYLOAD_SCRIPT_OFFSET),
   }));
 }
@@ -154,13 +161,13 @@ export class WonderSession {
       return;
     }
     this.event = event;
-    if (this.running) this.distributor.open(beaconData(event));
+    if (this.running) this.distributor.open(eventBeacons(event));
   }
 
   start() {
     if (!this.event) throw new Error('No event chosen.');
     this.running = true;
-    this.distributor.open(beaconData(this.event));
+    this.distributor.open(eventBeacons(this.event));
     this.status('open');
   }
 
@@ -341,7 +348,7 @@ export class WonderSession {
       this.nextEvent = null;
     }
     if (!this.running) return;
-    this.distributor.open(beaconData(this.event));
+    this.distributor.open(eventBeacons(this.event));
     this.status('open');
   }
 }

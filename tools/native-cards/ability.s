@@ -8,7 +8,8 @@
 @
 @ Parameters (--defsym): PARTY, SPECIAL_VAR_8004, SPECIAL_VAR_RESULT,
 @ STRING_VAR_2, SPECIES_INFO, ABILITY_NAMES, GET_MON_DATA, SET_MON_DATA,
-@ STRING_COPY and those of personality.inc and relocate.inc.
+@ STRING_COPY, JAPANESE (1 on the Japanese games) and those of personality.inc
+@ and relocate.inc.
 
     .syntax unified
     .thumb
@@ -20,7 +21,11 @@
     .equ SPECIES_INFO_SIZE, 0x1C
     .equ GENDER_RATIO, 0x10
     .equ ABILITIES, 0x16
+.if JAPANESE
+    .equ ABILITY_NAME_SIZE, 8
+.else
     .equ ABILITY_NAME_SIZE, 13
+.endif
     .equ MON_DATA_ABILITY_NUM, 46
     .equ MON_MALE, 0
     .equ MON_FEMALE, 254

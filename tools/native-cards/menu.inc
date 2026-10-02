@@ -3,13 +3,18 @@
 @ choice to the game's input task: after `waitstate` the script finds the
 @ item's index in VAR_RESULT, or 127 for B. The box is built the way
 @ DrawMultichoiceMenu (Emerald) and DrawVerticalMultichoiceMenu
-@ (FireRed/LeafGreen) build theirs, with the item list at MENU_LIST.
+@ (FireRed/LeafGreen) build theirs, with the item list at MENU_LIST. The
+@ Japanese games' fonts are fixed-width, and the box is as wide as their own
+@ make it for the longest item; r2 goes unused there.
 @
-@ Parameters (--defsym): EMERALD (1 on Emerald), SPECIAL_VAR_RESULT,
-@ MENU_LIST (room for 8 MenuActions), CREATE_WINDOW_FROM_RECT, WINDOW_BORDER,
-@ PRINT_MENU_ITEMS (PrintMenuTable / MultichoiceList_PrintItems),
-@ INIT_MENU_CURSOR, MULTICHOICE_TASK (InitMultichoiceCheckWrap /
-@ CreateMCMenuInputHandlerTask) and SCHEDULE_BG_COPY.
+@ Parameters (--defsym): EMERALD (1 on Emerald), JAPANESE (1 on the Japanese
+@ games), SPECIAL_VAR_RESULT, MENU_LIST (room for 8 MenuActions),
+@ CREATE_WINDOW_FROM_RECT, WINDOW_BORDER, PRINT_MENU_ITEMS (PrintMenuTable,
+@ Japanese Emerald's PrintMenuActionTextsWithSpacing /
+@ MultichoiceList_PrintItems), INIT_MENU_CURSOR (InitMenuInUpperLeftCornerNormal,
+@ Japanese Emerald's InitMenuNormal / Menu_InitCursor), MULTICHOICE_TASK
+@ (InitMultichoiceCheckWrap / CreateMCMenuInputHandlerTask) and
+@ SCHEDULE_BG_COPY.
 @
 @ With MENU_LISTS set, `list_menu` is `menu` for r1 names that follow one
 @ another from r0, each word-aligned (as data.inc lays them out).
@@ -17,6 +22,12 @@
     .equ MENU_RIGHT, 28                 @ the box ends at this column
     .equ MENU_ID, 2                     @ a multichoice id with no extras
     .equ FONT_NORMAL_FRLG, 2
+    .equ FONT_NORMAL_EMERALD, 1
+.if JAPANESE
+    .equ TEXT_LEFT_FRLG, 11             @ past the cursor
+.else
+    .equ TEXT_LEFT_FRLG, 8
+.endif
 
 menu:
     push {r4, r5, r6, r7, lr}
@@ -31,6 +42,12 @@ menu:
     adds r3, #1
     cmp r3, r5
     bne 1b
+.if JAPANESE
+    ldr r0, menu_list
+    movs r1, r5
+    bl menu_width
+    movs r7, r0
+.endif
     ldr r6, menu_list
     movs r0, #MENU_RIGHT
     subs r0, r0, r7
@@ -50,6 +67,32 @@ menu:
     ldr r4, menu_border
     bl menu_call
 .if EMERALD
+.if JAPANESE
+    movs r1, #16                        @ PrintMenuActionTextsWithSpacing(window,
+    str r1, [sp, #0]                    @ font, 8, 2, 16, count, list, 0, 0)
+    str r5, [sp, #4]
+    str r6, [sp, #8]
+    movs r1, #0
+    str r1, [sp, #12]
+    str r1, [sp, #16]
+    movs r0, r7
+    movs r1, #FONT_NORMAL_EMERALD
+    movs r2, #8
+    movs r3, #2
+    ldr r4, menu_print
+    bl menu_call
+    movs r1, #16                        @ InitMenuNormal(window, font, 0, 2, 16,
+    str r1, [sp, #0]                    @ count, 0)
+    str r5, [sp, #4]
+    movs r1, #0
+    str r1, [sp, #8]
+    movs r0, r7
+    movs r1, #FONT_NORMAL_EMERALD
+    movs r2, #0
+    movs r3, #2
+    ldr r4, menu_cursor
+    bl menu_call
+.else
     movs r0, r7
     movs r1, r5
     movs r2, r6
@@ -60,12 +103,13 @@ menu:
     movs r2, #0
     ldr r4, menu_cursor
     bl menu_call
+.endif
     movs r0, #0
     ldr r4, menu_copy
     bl menu_call
 .else
     movs r1, #14                        @ MultichoiceList_PrintItems(window, font,
-    str r1, [sp, #0]                    @ 8, 2, 14, count, list, 0, 2)
+    str r1, [sp, #0]                    @ TEXT_LEFT_FRLG, 2, 14, count, list, 0, 2)
     str r5, [sp, #4]
     str r6, [sp, #8]
     movs r1, #0
@@ -73,7 +117,7 @@ menu:
     movs r1, #2
     str r1, [sp, #16]
     movs r0, r7
-    movs r2, #8
+    movs r2, #TEXT_LEFT_FRLG
     movs r3, #2
     ldr r4, menu_print
     bl menu_call
@@ -108,6 +152,37 @@ menu:
 
 menu_call:
     bx r4
+
+.if JAPANESE
+@ The width in tiles of a box for the r1 MenuActions at r0: Emerald's is a
+@ tile a character and one for the cursor, FireRed/LeafGreen's 11 pixels a
+@ character and 11 for the cursor.
+menu_width:
+    push {r4, r5}
+    movs r2, #0                         @ the longest name
+1:  ldr r3, [r0]
+    adds r0, #8
+    movs r4, #0
+2:  ldrb r5, [r3, r4]
+    cmp r5, #0xFF
+    beq 3f
+    adds r4, #1
+    b 2b
+3:  cmp r4, r2
+    bls 4f
+    movs r2, r4
+4:  subs r1, #1
+    bne 1b
+    adds r0, r2, #1
+.if EMERALD == 0
+    movs r1, #11
+    muls r0, r1
+    adds r0, #7
+    lsrs r0, r0, #3
+.endif
+    pop {r4, r5}
+    bx lr
+.endif
 
 .ifdef MENU_LISTS
 list_menu:

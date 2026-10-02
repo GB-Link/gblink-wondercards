@@ -14,7 +14,8 @@
 @ Both recalculate its stats.
 @
 @ Parameters (--defsym): PICK, PARTY, SPECIAL_VAR_8004, SET_MON_DATA,
-@ CALCULATE_STATS, STRING_VAR_2, TYPE_NAMES, STRING_COPY, relocate.inc's, and
+@ CALCULATE_STATS, STRING_VAR_2, TYPE_NAMES, STRING_COPY, JAPANESE (1 on the
+@ Japanese games), relocate.inc's, and
 @ with PICK 0 GET_MON_DATA, with PICK 1 SPECIAL_VAR_RESULT and menu.inc's;
 @ data.inc holds the kinds' names.
 
@@ -28,7 +29,11 @@
     .equ STAT_COUNT, 6
     .equ TYPE_FIGHTING, 1
     .equ TYPE_MYSTERY, 9                @ ???, which Hidden Power skips
+.if JAPANESE
+    .equ TYPE_NAME_SIZE, 5
+.else
     .equ TYPE_NAME_SIZE, 7
+.endif
     .equ KIND_TYPES, 8
     .equ KIND_WIDTH, 8                  @ tiles, for PHYSICAL
     .equ TYPE_WIDTH, 7                  @ for FLYING

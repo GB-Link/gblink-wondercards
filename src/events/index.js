@@ -15,7 +15,7 @@ import {
   defaultWonderDistributorIdentity,
 } from './rfu-identity.js';
 
-export { createEventDescriptor, eventGames, gamesPhrase, identityFromEvent } from './descriptor.js';
+export { createEventDescriptor, eventGames, eventLanguages, gamesPhrase, identityFromEvent } from './descriptor.js';
 export { auroraTicket } from './aurora-ticket.js';
 export { jpajWondercardEvents } from './jpaj-events.js';
 export { jpajFrlgWondercardEvents } from './jpaj-frlg-events.js';

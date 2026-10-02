@@ -10,7 +10,9 @@
 @   `go_on`, which first closes the message. With the badge, and for
 @   WATERFALL surfing north, which is what the game checks.
 @ - The game only offers SURF when a Pokémon knows it; A facing water that
-@   can be surfed, with the badge, starts the SURF script past that check.
+@   can be surfed, with the badge, starts the SURF script past that check,
+@   also through `go_on`, which puts away the banner with a new map's name
+@   as the field does when it starts a script itself.
 @   On FireRed/LeafGreen, A facing a current too fast says so first, as the
 @   game does when a Pokémon knows SURF.
 @ - In a dark cave, with the badge, the hook lights it as FLASH does.
@@ -22,7 +24,7 @@
 @
 @ Parameters (--defsym): INTR_VBLANK, MAIN, SCRIPT_CONTEXT, SCRIPT_STATUS,
 @ CONTROLS_LOCKED, PLAYER_AVATAR, MAP_HEADER, PARTY, SPECIAL_VAR_RESULT,
-@ CB2_OVERWORLD, FLAG_GET, SETUP_SCRIPT, FACING_SURFABLE_WATER,
+@ CB2_OVERWORLD, FLAG_GET, SETUP_SCRIPT, HIDE_MAP_NAME, FACING_SURFABLE_WATER,
 @ SURFING_NORTH, USE_FLASH, the CANT and RESUME addresses of each move,
 @ SURF_RESUME, EMERALD and STATE; on FireRed/LeafGreen QUEST_LOG_STATE,
 @ FRONT_OF_PLAYER, METATILE_BEHAVIOR_AT, IS_FAST_WATER and CURRENT_TOO_FAST.
@@ -178,9 +180,9 @@ cant_message:
     strh r0, [r1]
     ldr r0, [r6, #4]                    @ where the script goes on, for go_on
     adr r1, go_on
-    strh r0, [r1, #2]
+    strh r0, [r1, #8]
     lsrs r0, r0, #16
-    strh r0, [r1, #4]
+    strh r0, [r1, #10]
     str r1, [r5, #CTX_SCRIPT_PTR]
     movs r0, #0
     strb r0, [r5, #CTX_STACK_DEPTH]
@@ -246,7 +248,10 @@ surf:
     beq 8f
     ldr r1, r_var_result
     strh r0, [r1]
-2:  movs r0, r5
+2:  adr r0, go_on
+    strh r5, [r0, #8]
+    lsrs r1, r5, #16
+    strh r1, [r0, #10]
     ldr r3, r_setup_script
     bl call_r3
     movs r0, #1
@@ -321,9 +326,13 @@ r_surf_resume:      .word SURF_RESUME
 r_badge_surf:       .word BADGE_SURF
 r_badge_flash:      .word BADGE_FLASH
 r_flag_flash_on:    .word FLAG_FLASH_ON
-@ closemessage, then goto RESUME (written in by cant_message)
+@ callnative HIDE_MAP_NAME, closemessage, then goto RESUME or the SURF
+@ script (written in at go_on + 8 by cant_message and surf)
+    .align 2
 go_on:
-    .byte 0x68, 0x05
+    .byte 0x23
+    .4byte HIDE_MAP_NAME
+    .byte 0x68, 0x00, 0x05              @ the nop aligns goto's target
     .hword 0, 0
     .align 2
 moves:
