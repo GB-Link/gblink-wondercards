@@ -121,6 +121,7 @@ export const JAPANESE = {
   'Catch or defeat one POKéMON\nagain and again to meet it\nshiny. Visit the deliveryman\non 2F of a POKéMON CENTER.':
     'おなじ　ポケモンを　つかまえたり\nたおすほど　いろちがいに！\nポケモンセンター　２かいの\nはいたついんに　はなしかけてね',
   'On until you reset!\nR shows your chain.': 'リセットするまで　オン！\nＲで　れんさを　みられます',
+  'On until you reset!': 'リセットするまで　オン！',
   '{STR_VAR_1} chain: {STR_VAR_2}!': '{STR_VAR_1}の　れんさ　{STR_VAR_2}！',
 
   // ---- pokémon follow

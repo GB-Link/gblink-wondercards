@@ -13,11 +13,12 @@
 @ fast walk), a ledge's jump becoming a walk to its edge; two tiles away in a
 @ line it jumps (the ledge one step back), farther it is moved straight
 @ there. Its current elevation is kept at NO_ELEVATION, which matches no
-@ tile's, so nothing collides with it or talks to it: the player, people and
-@ trainers' sight go through, while its sprite keeps the priority of its
-@ previous elevation. Biking, surfing and diving hide it on the player's tile.
-@ A pressed in the field facing it (the game finds nothing there to talk to)
-@ runs `talk_script`: it turns to the player and cries.
+@ tile's but elevation 0's, so little collides with it and nothing talks to
+@ it: people and trainers' sight go through, while its sprite keeps the
+@ priority of its previous elevation; a player who bumps into it from an
+@ elevation-0 tile gets its place. Biking, surfing and diving hide it on the
+@ player's tile, and it is gone while a menu is up. A pressed in the field
+@ facing it runs `talk_script`: it turns to the player and cries.
 @
 @ `install` copies `resident`..`resident_end` to RESIDENT like the other hooks
 @ (only one card's hook can run between resets) and points the V-blank
@@ -26,8 +27,8 @@
 @ Parameters (--defsym): INTR_VBLANK, MAIN, CB2_OVERWORLD, PARTY,
 @ PLAYER_AVATAR, OBJECT_EVENTS, GET_MON_DATA, SPAWN_OBJECT, SET_HELD_MOVEMENT,
 @ CLEAR_HELD_MOVEMENT, MOVE_OBJECT_TO, REMOVE_OBJECT, CB1_OVERWORLD,
-@ CONTROLS_LOCKED, SELECTED_OBJECT, SETUP_SCRIPT, QUEST_LOG_STATE (0 if none),
-@ EMERALD and STATE.
+@ CONTROLS_LOCKED, SCRIPT_STATUS, SELECTED_OBJECT, SETUP_SCRIPT, EMERALD and
+@ STATE.
 
     .syntax unified
     .thumb
@@ -37,7 +38,6 @@
     .equ RESIDENT, 0x0203FC00           @ unused RAM in both games
     .equ ENABLED, 0                     @ STATE: u8
     .equ OBJECT, 1                      @ u8, the follower's object event, or NONE
-    .equ GRAPHICS, 2                    @ u8, its sprite
     .equ PENDING, 3                     @ u8, 1 while a step waits to be taken
     .equ PLAYER_XY, 4                   @ s16 × 2, the player's coordinates last seen
     .equ TARGET_XY, 8                   @ s16 × 2, the tile the follower goes to
@@ -50,7 +50,6 @@
     .equ MAIN_CALLBACK2, 4
     .equ MAIN_INTR_CHECK, 0x1C
     .equ MAIN_NEW_KEYS, 0x2E
-    .equ QL_STATE_PLAYBACK, 2           @ and 3, its last scene
     .equ AVATAR_OBJECT, 5               @ in gPlayerAvatar
     .equ AVATAR_RIDING, 0x1E            @ its flags: either bike, surfing, underwater
     .equ OBJ_SIZE, 0x24                 @ struct ObjectEvent
@@ -64,6 +63,8 @@
     .equ OBJ_DIRECTION, 0x18            @ movement direction in the high 4 bits
     .equ OBJ_ACTION, 0x1C
     .equ INVISIBLE_BIT, 5
+    .equ OBJ_FLAGS_3, 3                 @ bit 2 fixedPriority
+    .equ FIXED_PRIORITY_BIT, 2
     .equ MON_DATA_SPECIES_OR_EGG, 65
     .equ OBJECT_EVENTS_COUNT, 16
 .if EMERALD
@@ -71,11 +72,13 @@
     .equ JUMP_2, 0x0C                   @ MOVEMENT_ACTION_JUMP_2_DOWN
     .equ WALK_FAST, 0x15                @ MOVEMENT_ACTION_WALK_FAST_DOWN
     .equ PLAYER_RUN, 0x35               @ MOVEMENT_ACTION_PLAYER_RUN_DOWN
+    .equ WALK_IN_PLACE_SLOW, 0x19       @ MOVEMENT_ACTION_WALK_IN_PLACE_SLOW_DOWN, a bump
 .else
     .equ WALK_NORMAL, 0x10
     .equ JUMP_2, 0x14
     .equ WALK_FAST, 0x1D
     .equ PLAYER_RUN, 0x3D
+    .equ WALK_IN_PLACE_SLOW, 0x21
 .endif
     .equ IME, 0x04000208
 
@@ -152,33 +155,49 @@ follow:
     ldr r5, r_object_events
     adds r5, r5, r0
     bl lead_graphics                    @ r0 = the sprite, 0 if none
-    ldrb r1, [r4, #OBJECT]
-    cmp r1, #NONE
-    beq 2f
-    movs r2, #OBJ_SIZE
-    muls r1, r2
+@ r7 = 1 while a menu is up (the field locked, no script running): the start
+@ menu's SAVE among them. No follower then, so none is ever saved.
+    ldr r7, r_controls_locked
+    ldrb r7, [r7]
+    cmp r7, #0
+    beq 15f
+    ldr r7, r_script_status
+    ldrb r7, [r7]
+    lsrs r7, r7, #1                     @ CONTEXT_SHUTDOWN 2; running 0, waiting 1
+15:
+@ The follower is the active object event of local id FOLLOW_ID: none on a
+@ new map, and on a continued game the one the save kept.
     ldr r6, r_object_events
-    adds r6, r6, r1
-    ldrb r1, [r6, #OBJ_FLAGS]
-    lsls r1, r1, #31
-    beq 1f                              @ a new map's object events
-    ldrb r1, [r6, #OBJ_LOCAL_ID]
-    cmp r1, #FOLLOW_ID
-    bne 1f
+    movs r1, #0
+12: ldrb r2, [r6, #OBJ_FLAGS]
+    lsls r2, r2, #31
+    beq 13f
+    ldrb r2, [r6, #OBJ_LOCAL_ID]
+    cmp r2, #FOLLOW_ID
+    beq 14f
+13: adds r6, #OBJ_SIZE
+    adds r1, #1
+    cmp r1, #OBJECT_EVENTS_COUNT
+    bne 12b
+    b 1f
+14: strb r1, [r4, #OBJECT]
     ldrb r1, [r6, #OBJ_GRAPHICS]
     cmp r1, r0
+    bne 16f
+    cmp r7, #0
     beq 4f                              @ still ours, still the lead
-    push {r0}
+16: push {r0}
     movs r0, r6
     ldr r3, r_remove_object
     bl call_r3
     pop {r0}
 1:  movs r1, #NONE
     strb r1, [r4, #OBJECT]
-2:  strb r0, [r4, #GRAPHICS]
     cmp r0, #0
-    bne 3f
-    b 9f
+    beq 17f                             @ a lead with no sprite
+    cmp r7, #0
+    beq 3f
+17: b 9f
 @ A new follower on the player's tile, hidden until the first step.
 3:
     sub sp, #8
@@ -211,6 +230,14 @@ follow:
     lsls r0, r0, #4
     adds r0, #NO_ELEVATION
     strb r0, [r6, #OBJ_ELEVATION]
+@ A script's save keeps it, and loading one resets each object's elevation
+@ from its tile, unless its priority is fixed: fixed while the field is
+@ locked, so a kept follower is no obstacle either. (Byte 3's other flags are
+@ for frozen or scripted objects; it is neither when it moves.)
+    ldr r0, r_controls_locked
+    ldrb r0, [r0]
+    lsls r0, r0, #FIXED_PRIORITY_BIT
+    strb r0, [r6, #OBJ_FLAGS_3]
     ldr r0, r_player_avatar
     ldrb r0, [r0]
     movs r1, #AVATAR_RIDING
@@ -336,15 +363,14 @@ hide:
 call_r7:
     bx r7
 
-@ A just pressed in the field, facing the follower: r4 = STATE, and as
-@ `follow` left them, r5 = the player's object event, r6 = the follower's.
+@ In the field, facing the follower: A runs talk_script; pushing into it (the
+@ player bumps where elevation 0 lets anything collide) puts it on the
+@ player's tile, so the way is free. r4 = STATE, and as `follow` left them,
+@ r5 = the player's object event, r6 = the follower's.
 talk:
     push {lr}
-    ldr r0, r_main
-    ldrh r1, [r0, #MAIN_NEW_KEYS]
-    lsrs r1, r1, #1
-    bcc 9f
-    ldr r0, [r0]
+    ldr r7, r_main
+    ldr r0, [r7]
     ldr r1, r_cb2_overworld
     subs r1, #CB2_OVERWORLD - CB1_OVERWORLD
     cmp r0, r1
@@ -353,12 +379,6 @@ talk:
     ldrb r0, [r0]
     cmp r0, #0
     bne 9f                              @ a menu, or a script the A started
-.if EMERALD == 0
-    ldr r0, r_quest_log_state
-    ldrb r0, [r0]
-    cmp r0, #QL_STATE_PLAYBACK
-    bcs 9f
-.endif
     ldrb r1, [r4, #OBJECT]
     cmp r1, #NONE
     beq 9f
@@ -378,7 +398,18 @@ talk:
     ldr r2, [r6, #OBJ_CURRENT]
     cmp r0, r2
     bne 9f
-    ldr r0, r_selected_object           @ faceplayer turns it
+    ldrh r0, [r7, #MAIN_NEW_KEYS]
+    lsrs r0, r0, #1
+    bcs 3f
+    ldrb r0, [r5, #OBJ_ACTION]
+    subs r0, #WALK_IN_PLACE_SLOW
+    cmp r0, #3
+    bhi 9f
+    bl hide
+    ldrh r1, [r5, #OBJ_CURRENT]
+    ldrh r2, [r5, #OBJ_CURRENT + 2]
+    b move_to
+3:  ldr r0, r_selected_object           @ faceplayer turns it
     strb r1, [r0]
     movs r0, r6
     ldr r3, r_clear_held_movement
@@ -425,9 +456,7 @@ r_clear_held_movement: .word CLEAR_HELD_MOVEMENT
 r_move_object_to:      .word MOVE_OBJECT_TO
 r_remove_object:       .word REMOVE_OBJECT
 r_controls_locked:     .word CONTROLS_LOCKED
-.if EMERALD == 0
-r_quest_log_state:     .word QUEST_LOG_STATE
-.endif
+r_script_status:       .word SCRIPT_STATUS
 r_selected_object:     .word SELECTED_OBJECT
 r_setup_script:        .word SETUP_SCRIPT
 r_talk_script:         .word RESIDENT + (talk_script - resident)

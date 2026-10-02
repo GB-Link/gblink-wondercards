@@ -1712,16 +1712,14 @@ const CARDS = [
       body: ['Your lead POKéMON walks behind', 'you, if the game has its', 'sprite. Visit the deliveryman', 'on 2F of a POKéMON CENTER.'],
       footer: FOOTER,
     },
-    // The first talk turns it on, until the game is reset; talking again says so.
+    // Each talk turns it on, until the game is reset (again changes nothing).
     script: {
       body: [
-        ...compareAddrToValue(HOOK_STATE, 1), ...vgotoIf(EQ, 'active'),
         ...native('install'),
-        { define: 'active' },
         ...say('on_text'),
       ],
       texts: {
-        on_text: 'Your lead POKéMON follows you\nuntil you reset!',
+        on_text: 'On until you reset!',
       },
     },
   },
