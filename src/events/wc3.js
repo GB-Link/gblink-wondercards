@@ -6,7 +6,7 @@
 import { createEventDescriptor } from './descriptor.js';
 import { defaultWonderDistributorIdentity, RFU_SERIAL_WONDER_DISTRIBUTOR } from './rfu-identity.js';
 import {
-  JAPANESE_WONDER_CARD_BYTES, PAYLOAD_SCRIPT_OFFSET, RAM_SCRIPT_BYTES, WONDER_CARD_BYTES, crc16,
+  JAPANESE_WONDER_CARD_BYTES, PAYLOAD_SCRIPT_OFFSET, RAM_SCRIPT_BYTES, WONDER_CARD_BYTES, crc16, shareableCard,
 } from '../link/mystery-gift.js';
 import { decodeGameText } from '../link/text.js';
 
@@ -44,7 +44,7 @@ function put16(bytes, at, value) {
 export function wc3FromPayload(payload, japanese = false) {
   const layout = japanese ? LAYOUTS.japanese : LAYOUTS.international;
   const file = new Uint8Array(layout.bytes);
-  const card = payload.subarray(0, layout.card);
+  const card = shareableCard(payload.subarray(0, layout.card));
   file.set(card, CARD_AT);
   put16(file, 0, crc16(card));
   file.set(card.subarray(2, 4), layout.icon);

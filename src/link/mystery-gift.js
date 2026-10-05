@@ -61,6 +61,17 @@ export const GAME_DATA_BYTES = 100;
 // Where a site payload keeps the card and the script that goes with it.
 export const PAYLOAD_SCRIPT_OFFSET = 336;
 
+// struct WonderCard byte 8: type (bits 0-1), background (2-5), sendType (6-7). Every card
+// the page gives can be passed on from the game's Wonder Card menu (SEND), and by whoever
+// receives it in turn: SEND_TYPE_ALLOWED_ALWAYS, which the game keeps when it sends a card on.
+const SEND_TYPE_ALLOWED_ALWAYS = 2;
+
+export function shareableCard(card) {
+  const out = Uint8Array.from(card);
+  out[8] = (out[8] & 0x3f) | (SEND_TYPE_ALLOWED_ALWAYS << 6);
+  return out;
+}
+
 const CRC_TABLE = (() => {
   const table = new Uint16Array(256);
   for (let i = 0; i < 256; i++) {
@@ -319,7 +330,7 @@ export class WonderCardServer {
     if (!game.valid) return this.end('cant-accept', CLIENT_SCRIPTS.cantAccept, game);
     const payload = this.payload(game);
     if (!payload) return this.end('unsupported', CLIENT_SCRIPTS.cantAccept, game);
-    const card = payload.card;
+    const card = shareableCard(payload.card);
     const ramScript = payload.script;
 
     const flagId = cardFlagId(card);
