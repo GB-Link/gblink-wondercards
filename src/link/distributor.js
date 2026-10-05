@@ -4,9 +4,15 @@
 //
 // Parent frames start with a 3-byte header (size 0-6, phase 9-10, n 11-12,
 // ack 13, state 14-17, slot bitmap 18-21); once linked they carry five 14-byte
-// command slots: slot 0 is the parent's command, slot 1 echoes the child's last
-// command once. Child frames start with a 2-byte header (size 0-4,
+// command slots: slot 0 is the parent's command, slot 1 echoes a command of the
+// child's. Child frames start with a 2-byte header (size 0-4,
 // phase 5-6, n 7-8, ack 9, state 10-13) and carry one slot.
+//
+// The child takes its own commands back from slot 1: a block it sends completes
+// only once every fragment came back, and when its last fragment comes back
+// with others missing, it sends those again. An adapter packet can carry
+// several of the child's frames, so each distinct command is queued for
+// echoing; a repeat still waiting is not queued twice.
 
 import {
   RFU1,
@@ -23,6 +29,10 @@ const SLOT_COUNT = 5;
 const FRAGMENT_BYTES = 12;
 const MAX_FRAGMENTS = 24;
 const BEACON_TICKS = 30;
+// Ticks before a child's INIT or whole block's last fragment goes back again;
+// the same for the last fragment with fragments missing.
+const ECHO_RETRY = 16;
+const ECHO_RETRY_MISSING = 48;
 // The adapter asks for a pause while its queue toward the GBA runs deep; it
 // repeats the request every 150 ms, so a hold lapses on its own.
 const FLOW_HOLD_TICKS = 18;
@@ -114,7 +124,7 @@ export class Distributor {
     this.joinStep = 0;
     this.idleNull = 0;
     this.own = [];
-    this.echo = null;
+    this.echoes = [];
     this.recv = null;
     this.hold = 0;
     this.silentTicks = 0;
@@ -253,10 +263,39 @@ export class Distributor {
     const words = slotWords(slot);
     // Bits 5-7 of the command word are the child's sequence tag.
     words[0] &= 0xff1f;
-    this.echo = words;
     const op = words[0] & 0xff00;
-    if (op === CMD.SEND_BLOCK_INIT || op === CMD.SEND_BLOCK) this.childBlock(words);
-    else this.onCommand?.(words);
+    const block = op === CMD.SEND_BLOCK_INIT || op === CMD.SEND_BLOCK;
+    if (block) this.childBlock(words);
+    if (this.echoWanted(words)) {
+      const waiting = this.echoes.at(-1);
+      if (!waiting || waiting.some((word, i) => word !== words[i])) this.echoes.push(words);
+    }
+    if (!block) this.onCommand?.(words);
+  }
+
+  // The child resends the fragments its echoes lack each time its block's last
+  // fragment comes back: echoed on every repeat, a lost fragment is queued again
+  // each frame until the child's send queue (40) overflows and the link is
+  // lost. So the last fragment goes back when it first arrives, at once when
+  // the block is whole, and otherwise only after a while, in case an echo was
+  // lost. The child repeats its INIT until it comes back, and a one-fragment
+  // block takes INIT's index 0 for its last fragment: INIT goes back once, and
+  // again only after a while.
+  echoWanted(words) {
+    const r = this.recv;
+    const op = words[0] & 0xff00;
+    if (!r || (op === CMD.SEND_BLOCK_INIT && words[1] !== r.count)) return true;
+    if (op === CMD.SEND_BLOCK_INIT) {
+      if (r.initEcho !== undefined && this.ticks - r.initEcho < ECHO_RETRY) return false;
+      r.initEcho = this.ticks;
+      return true;
+    }
+    if (op !== CMD.SEND_BLOCK || (words[0] & 0x1f) !== r.count - 1) return true;
+    const wait = r.done ? (r.wholeEchoed ? ECHO_RETRY : 0) : ECHO_RETRY_MISSING;
+    if (r.lastEcho !== undefined && this.ticks - r.lastEcho < wait) return false;
+    r.lastEcho = this.ticks;
+    if (r.done) r.wholeEchoed = true;
+    return true;
   }
 
   childBlock(words) {
@@ -298,10 +337,21 @@ export class Distributor {
     frame.set(parentHeader(STATE.UNI, 0, 0, SLOT_COUNT * SLOT_BYTES, false));
     const own = this.own.shift();
     if (own) for (let i = 0; i < 7; i++) put16(frame, 3 + i * 2, own[i] ?? 0);
-    const echo = this.echo;
-    this.echo = null;
+    const echo = this.takeEcho();
     if (echo) for (let i = 0; i < 7; i++) put16(frame, 3 + SLOT_BYTES + i * 2, echo[i]);
     return frame;
+  }
+
+  // With nothing to echo, slot 1 holds zeros, which a child waiting on a
+  // one-fragment block takes for that fragment's index and resends it: it holds
+  // a word with no command and no fragment index instead until the block
+  // should be through.
+  takeEcho() {
+    const echo = this.echoes.shift();
+    if (echo) return echo;
+    const r = this.recv;
+    if (r?.count === 1 && !(r.wholeEchoed && this.ticks - r.lastEcho >= ECHO_RETRY)) return [0x00ff, 0, 0, 0, 0, 0, 0];
+    return null;
   }
 
   // ---- game level (link_rfu_2.c as the parent)
@@ -324,8 +374,11 @@ export class Distributor {
     this.command([CMD.READY_EXIT_STANDBY, count, 0, 0, 0, 0, 0]);
   }
 
+  // The child closes once its own READY_CLOSE_LINK comes back, which it sends
+  // only once: echoed for it as well, a lost one cannot leave it waiting.
   closeLink(count) {
     this.command([CMD.READY_CLOSE_LINK, count, 0, 0, 0, 0, 0]);
+    this.echoes.push([CMD.READY_CLOSE_LINK, count, 0, 0, 0, 0, 0]);
   }
 
   // Sends a block: its INIT on four frames, then one fragment per frame, never

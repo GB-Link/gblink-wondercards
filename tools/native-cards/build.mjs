@@ -2354,6 +2354,42 @@ function payloadsText(card, kept, dir) {
   return lines.join('');
 }
 
+// The save backup's and restore's buffer scripts for each ROM, and the messages the
+// game ends them with (a CLI_COPY_MSG, at most 64 bytes), for src/link/save.js.
+const SAVE_PAYLOADS_FILE = join(HERE, '../../src/events/save-payloads.js');
+const SAVE_MESSAGES = {
+  backedUp: 'Your save was copied to the\nGB-Link page.',
+  restored: 'The save from the GB-Link page\nis in. Saving it now.',
+  notRestored: 'The save could not be written.\nNothing was saved.',
+};
+
+function writeSavePayloads(dir) {
+  const messages = Object.entries(LANGUAGES).map(([name, lang]) => `  ${name}: {\n${Object.entries(SAVE_MESSAGES).map(([key, text]) => {
+    const encoded = encodeText(lang.text(text), PLACEHOLDERS, lang.charset);
+    if (encoded.length > 64) throw new Error(`${key} (${name}): ${encoded.length} bytes, over 64`);
+    return `    ${key}: ${decodeText(Uint8Array.from(encoded))},\n`;
+  }).join('')}  },\n`);
+  const roms = Object.entries(ROMS).map(([romId, rom]) => {
+    const { DECOMPRESSION_BUFFER, SEND_QUEUE_COUNT, WRITE_SECTOR, LOAD_GAME_SAVE } = rom.symbols;
+    if (!DECOMPRESSION_BUFFER || !SEND_QUEUE_COUNT || !WRITE_SECTOR || !LOAD_GAME_SAVE) throw new Error(`${romId}: no save symbols`);
+    const backup = assemble('savebackup.s', { DECOMPRESSION_BUFFER, SEND_QUEUE_COUNT }, dir);
+    const restore = assemble('saverestore.s', { DECOMPRESSION_BUFFER, WRITE_SECTOR, LOAD_GAME_SAVE }, dir);
+    for (const [name, built] of [['backup', backup], ['restore', restore]]) {
+      if (built.bytes.length > 0x400) throw new Error(`save ${name} ${romId}: ${built.bytes.length} bytes, over 1 KB`);
+    }
+    return `  '${romId}': {\n    buffer: 0x${DECOMPRESSION_BUFFER.toString(16)},\n    entry: 0x${(DECOMPRESSION_BUFFER + 0x400 + restore.labels.entry).toString(16)},\n`
+      + `    backup: ${decodeText(Uint8Array.from(backup.bytes), '  ')},\n    restore: ${decodeText(Uint8Array.from(restore.bytes), '  ')},\n  },\n`;
+  });
+  writeFileSync(SAVE_PAYLOADS_FILE, '// Written by tools/native-cards/build.mjs from savebackup.s and saverestore.s.\n\n'
+    + 'function decodeBase64(s) {\n  const bin = atob(s.replace(/\\s+/g, \'\'));\n  const out = new Uint8Array(bin.length);\n'
+    + '  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);\n  return out;\n}\n\n'
+    + '// By ROM: gDecompressionBuffer, where the restore\'s entry lands once installed past its\n'
+    + '// first 1 KB, and the two buffer scripts.\n'
+    + `export const SAVE_SCRIPTS = {\n${roms.join('')}};\n\n`
+    + `// The messages the game ends with, in its own text.\nexport const SAVE_MESSAGES = {\n${messages.join('')}};\n`);
+  console.log(`save backup and restore: scripts for ${roms.length} ROMs`);
+}
+
 let source = readFileSync(EVENTS_FILE, 'utf8');
 // the ROM lists the entries name
 const romList = (ids) => `[${ids.map((id) => `'${id}'`).join(', ')}]`;
@@ -2369,6 +2405,7 @@ try {
     source = source.replace(entry, (all, head, old, tail) => head + text + tail);
   }
   writeFileSync(EVENTS_FILE, source);
+  writeSavePayloads(dir);
 } finally {
   rmSync(dir, { recursive: true, force: true });
 }

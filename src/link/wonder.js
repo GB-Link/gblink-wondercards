@@ -14,6 +14,7 @@ import {
   isJapanese,
   romId,
 } from './mystery-gift.js';
+import { SaveBackupServer, SaveRestoreServer } from './save.js';
 import { decodeGameText } from './text.js';
 
 // Frames to wait after the GBA's first linked frame before sending player ids,
@@ -290,7 +291,9 @@ export class WonderSession {
 
   startServer() {
     const link = this.link;
-    const server = new WonderCardServer({
+    const Server = { backup: SaveBackupServer, restore: SaveRestoreServer }[link.event.kind] ?? WonderCardServer;
+    const server = new Server({
+      save: link.event.save,
       link: this.distributor,
       payload: (game) => eventPayload(link.event, game),
       game: link.event.game,

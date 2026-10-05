@@ -12,6 +12,7 @@ import {
   gamesPhrase,
 } from './events/index.js';
 import { WC3_GAMES, Wc3Error, payloadForGame, wc3Event, wc3FileName, wc3FromPayload } from './events/wc3.js';
+import { SAVE_BYTES, describeSave } from './link/save.js';
 
 const LAUNCHER_URL = 'https://launcher.gblink.io';
 
@@ -43,9 +44,25 @@ const wc3Open = document.getElementById('wc3-open');
 const wc3File = document.getElementById('wc3-file');
 const wc3Note = document.getElementById('wc3-note');
 const wc3Own = document.getElementById('wc3-own');
+const savBox = document.getElementById('sav-box');
+const savOpen = document.getElementById('sav-open');
+const savFile = document.getElementById('sav-file');
+const savName = document.getElementById('sav-name');
+const savNote = document.getElementById('sav-note');
+const backupsBox = document.getElementById('backups');
+const backupsList = document.getElementById('backups-list');
+const progressBox = document.getElementById('progress');
+const progressBar = document.getElementById('progress-bar');
+const progressFill = document.getElementById('progress-fill');
+const progressLabel = document.getElementById('progress-label');
 
 let currentEvent = EVENT_PRESETS[0];
 let fileEvent = null;   // the card of a .wc3 opened on the page
+let restoreFile = null; // the .sav chosen to restore, { bytes, name }
+const backups = [];     // saves backed up while the page is open, newest first: { bytes, name, whole, time }
+let linkBackup = null;  // the entry for the backup in this link
+let checkedGame = null; // the game the Game Boy Advance linked last reported
+let wholeSave = false;  // the save in this link came over whole
 let busy = false;
 let phase = 'idle';
 
@@ -171,6 +188,9 @@ distribution.onStatus = ({ stage, player, detail, event }) => {
       if (resultBanner.hidden) applyPhase('ready', { status: `Ready to send ${label}.`, instruction: whereToOpen() });
       break;
     case 'joining':
+      wholeSave = false;
+      linkBackup = null;
+      progressBox.hidden = true;
       hideResult();
       applyPhase('linking', { status: 'A Game Boy Advance is joining…', instruction: 'Keep this page open.' });
       log('A Game Boy Advance asked to join');
@@ -183,6 +203,7 @@ distribution.onStatus = ({ stage, player, detail, event }) => {
       applyPhase('linking', { status: 'Checking the Wonder Card on the Game Boy Advance…' });
       break;
     case 'checked':
+      checkedGame = detail;
       if (detail?.gameCode) log(`The Game Boy Advance is running ${describeRom(detail)}`);
       break;
     case 'asking':
@@ -196,7 +217,27 @@ distribution.onStatus = ({ stage, player, detail, event }) => {
       applyPhase('linking', { status: `Sending ${label}…`, instruction: 'Keep this page open.' });
       log(`Sending ${label}`);
       break;
+    case 'backing-up':
+      if (detail?.save) {
+        keepBackup(detail.save, saveFileName({ game: checkedGame, player }), detail.summary?.sound);
+        wholeSave = true;
+        log('The whole save is in');
+      }
+      showProgress(detail?.done ?? 0, detail?.total ?? 128);
+      applyPhase('linking', {
+        status: `Backing up the save: ${detail?.done ?? 0} of ${detail?.total ?? 128} KB`,
+        instruction: 'Keep this page open; the Game Boy Advance shows “Communicating” until it is done.',
+      });
+      break;
+    case 'restoring':
+      showProgress(detail?.done ?? 0, detail?.total ?? 18);
+      applyPhase('linking', {
+        status: `Restoring the save: ${detail?.done ?? 0} of ${detail?.total ?? 18} sectors written`,
+        instruction: 'Keep this page open and the Game Boy Advance on; it saves when the restore is done.',
+      });
+      break;
     case 'closing':
+      progressBox.hidden = true;
       applyPhase('linking', { status: 'Finishing the link…' });
       break;
     default:
@@ -242,10 +283,36 @@ decisionSkip.addEventListener('click', () => answer(false));
 
 distribution.onResult = (result) => {
   decisionBox.hidden = true;
+  progressBox.hidden = true;
   const name = eventOptionLabel(result.event ?? currentEvent);
   const next = `To send another card, choose it above. ${whereToOpen()}`;
   const again = `To try again, ${whereToOpen().replace(/^On/, 'on')}`;
   switch (result.outcome) {
+    case 'backed-up': {
+      const game = describeRom(result.game);
+      const whole = result.summary.sound;
+      keepBackup(result.save, saveFileName(result), whole);
+      applyPhase('complete', { status: 'Save backed up.', instruction: 'Download the .sav file below.' });
+      showResult(whole, whole ? 'Save backed up' : 'Save backed up, but not whole',
+        whole ? `The whole save of ${game} is here. Download the .sav file below.`
+          : `The save of ${game} came over, but neither of its two copies is whole. Download the .sav file, and back it up again.`);
+      log(`Backed up the save of ${game}`);
+      break;
+    }
+    case 'restored':
+      applyPhase('complete', { status: 'Save restored.', instruction: 'Let the game finish saving; Continue then loads it.' });
+      showResult(true, 'Save restored', `${result.event?.saveName ?? 'The .sav'} is on ${describeRom(result.game)}. Let the game finish saving before turning it off.`);
+      log(`Restored ${result.event?.saveName ?? 'the .sav'}`);
+      break;
+    case 'restore-failed': {
+      const detail = result.reason === 'unsound'
+        ? 'The .sav has no whole copy of a game in it. Nothing on the cartridge changed.'
+        : 'The cartridge could not take the save, so the game saved nothing. The cartridge keeps the save it had.';
+      applyPhase('ready', { status: 'Not restored.', instruction: again });
+      showResult(false, 'Not restored', detail);
+      log(`Not restored: ${detail}`);
+      break;
+    }
     case 'sent':
       applyPhase('complete', { status: 'Wonder Card delivered.', instruction: next });
       showResult(true, 'Wonder Card delivered', `${name} is on the Game Boy Advance. Wait for it to finish saving before turning it off.`);
@@ -273,6 +340,13 @@ distribution.onResult = (result) => {
       break;
     case 'unsupported': {
       const event = result.event ?? currentEvent;
+      if (event.kind) {
+        const detail = `The save ${event.kind === 'backup' ? 'backup' : 'restore'} does not run on ${describeRom(result.game)}.`;
+        applyPhase('ready', { status: detail, instruction: next });
+        showResult(false, 'Not done', detail);
+        log(detail);
+        break;
+      }
       const languages = eventLanguages(event);
       const japanese = isJapanese(result.game);
       let why = `${name} only runs on ${gamesPhrase(eventGames(event))}.`;
@@ -285,9 +359,19 @@ distribution.onResult = (result) => {
       break;
     }
     default: {
-      const detail = result.outcome === 'lost'
-        ? 'The link to the Game Boy Advance dropped before the card was delivered.'
+      const kind = (result.event ?? currentEvent)?.kind;
+      const what = kind === 'backup' ? 'the backup was done' : kind === 'restore' ? 'the restore was done' : 'the card was delivered';
+      let detail = result.outcome === 'lost'
+        ? `The link to the Game Boy Advance dropped before ${what}.`
         : result.message ?? 'The link to the Game Boy Advance failed.';
+      if (kind === 'restore') detail += ' Choose Mystery Gift again to go on from where it stopped; until it is done, the cartridge keeps the save it had.';
+      if (kind === 'backup' && wholeSave) {
+        applyPhase('complete', { status: 'Save backed up.', instruction: 'Download the .sav file below.' });
+        showResult(true, 'Save backed up', 'The whole save came over before the link dropped. Download the .sav file below; the cartridge’s save is as it was.');
+        log('The whole save came over before the link dropped');
+        break;
+      }
+      if (kind === 'backup') detail += ' Choose Mystery Gift again to go on from where it stopped, while this page stays open.';
       applyPhase('error', { status: detail, instruction: again });
       showResult(false, 'Not sent', detail);
       log(detail);
@@ -308,6 +392,7 @@ distribution.onAdapter = ({ gbaReady, resetLoop }) => {
 
 distribution.onDisconnect = () => {
   decisionBox.hidden = true;
+  progressBox.hidden = true;
   log('Adapter disconnected');
   applyPhase('idle', { status: 'Adapter disconnected.', instruction: 'Connect the GB-Link adapter to continue.' });
   refreshButtons();
@@ -322,11 +407,97 @@ function eventIdFromQuery() {
   }
 }
 
+// The event as it goes out: a restore carries the chosen .sav.
+function withSave(event) {
+  return event.kind === 'restore' && restoreFile ? { ...event, save: restoreFile.bytes, saveName: restoreFile.name } : event;
+}
+
+// The .sav a backup came to: game, player and day.
+function saveFileName(result) {
+  const game = describeGameCode(result.game.gameCode).replace(/ \(.*\)$/, '');
+  const player = (result.player?.name || 'save').replace(/[^\p{L}\p{N}_-]+/gu, '');
+  return `${game}-${player}-${new Date().toISOString().slice(0, 10)}.sav`;
+}
+
+function showProgress(done, total) {
+  const percent = Math.round(Math.max(0, Math.min(1, total ? done / total : 0)) * 100);
+  progressBox.hidden = false;
+  progressFill.style.width = `${percent}%`;
+  progressBar.setAttribute('aria-valuenow', String(percent));
+  progressLabel.textContent = `${percent}%`;
+}
+
+// A backup the link brought in: the whole save arrives before the exchange ends, and
+// the end may still mark it whole or not, so one link keeps one entry.
+function keepBackup(bytes, name, whole) {
+  if (!linkBackup) {
+    linkBackup = { bytes, name, whole, time: new Date() };
+    backups.unshift(linkBackup);
+  } else {
+    Object.assign(linkBackup, { bytes, name, whole: whole ?? linkBackup.whole });
+  }
+  renderBackups();
+}
+
+function renderBackups() {
+  backupsBox.hidden = !backups.length;
+  backupsList.replaceChildren(...backups.map((backup) => {
+    const item = document.createElement('li');
+    const copy = document.createElement('div');
+    copy.className = 'backup-copy';
+    const name = document.createElement('p');
+    name.className = 'backup-name';
+    name.textContent = backup.name;
+    const meta = document.createElement('p');
+    meta.className = 'backup-meta';
+    const time = backup.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    meta.textContent = backup.whole === false ? `${time} · neither copy is whole` : time;
+    copy.append(name, meta);
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'secondary';
+    button.textContent = 'Download';
+    button.addEventListener('click', () => downloadSave(backup));
+    item.append(copy, button);
+    return item;
+  }));
+}
+
+function downloadSave(backup) {
+  const url = URL.createObjectURL(new Blob([backup.bytes], { type: 'application/octet-stream' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = backup.name;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  log(`Downloaded ${backup.name}`);
+}
+
+// A .sav chosen for the restore: 128 KB of flash (a 16-byte emulator footer is
+// dropped), with at least one whole copy of the game.
+async function openSav(file) {
+  if (!file) return;
+  let bytes = new Uint8Array(await file.arrayBuffer());
+  if (bytes.length === SAVE_BYTES + 16) bytes = bytes.subarray(0, SAVE_BYTES);
+  restoreFile = null;
+  let problem = null;
+  if (bytes.length !== SAVE_BYTES) problem = `${file.name} is not a FireRed, LeafGreen or Emerald save: those are 128 KB.`;
+  else if (!describeSave(bytes).sound) problem = `${file.name} has no whole copy of a game in it.`;
+  else restoreFile = { bytes: bytes.slice(), name: file.name };
+  savNote.textContent = problem ?? '';
+  savNote.hidden = !problem;
+  savName.textContent = restoreFile ? restoreFile.name : 'to restore';
+  log(problem ?? `Chose ${file.name} to restore`);
+  currentEvent = withSave(currentEvent);
+  distribution.setEvent(currentEvent);
+}
+
 function applyEventSelection(id) {
   const preset = (fileEvent && id === fileEvent.id ? fileEvent : findPreset(id)) ?? EVENT_PRESETS[0];
   if (!preset) return null;
   eventSelect.value = preset.id;
-  currentEvent = preset;
+  currentEvent = withSave(preset);
+  savBox.hidden = preset.kind !== 'restore';
   descriptionText.textContent = preset.description;
   renderExport(preset);
   return preset;
@@ -412,7 +583,7 @@ function chooseEvent(id) {
   if (!preset) return;
   wc3Note.hidden = true;
   log(`Selected ${eventOptionLabel(preset)}`);
-  distribution.setEvent(preset);
+  distribution.setEvent(currentEvent);
   if (phase === 'idle') {
     setInstruction(`Connect the GB-Link adapter. ${whereToOpen(preset)}`);
   } else if (phase === 'ready' || phase === 'complete') {
@@ -446,8 +617,18 @@ window.addEventListener('drop', (event) => {
   openWc3(event.dataTransfer.files[0]);
 });
 
+savOpen.addEventListener('click', () => savFile.click());
+savFile.addEventListener('change', () => {
+  openSav(savFile.files?.[0]);
+  savFile.value = '';
+});
+
 connectBtn.addEventListener('click', async () => {
   if (busy) return;
+  if (currentEvent.kind === 'restore' && !restoreFile) {
+    applyPhase('error', { status: 'Choose the .sav file to restore first.', instruction: 'Use “Choose the .sav file” above.' });
+    return;
+  }
   busy = true;
   hideResult();
   applyPhase('connecting', { status: 'Waiting for adapter permission…', instruction: 'Approve the browser permission prompt.' });

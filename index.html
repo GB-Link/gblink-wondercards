@@ -21,6 +21,15 @@
         <label for="event-select">Event</label>
         <select id="event-select" aria-label="Select event"></select>
 
+        <div class="panel-block" id="sav-box" hidden>
+          <div class="panel-row">
+            <button type="button" id="sav-open" class="secondary">Choose the .sav file</button>
+            <span class="panel-hint" id="sav-name">to restore</span>
+          </div>
+          <input type="file" id="sav-file" accept=".sav" hidden />
+          <p class="panel-note" id="sav-note" role="alert" hidden></p>
+        </div>
+
         <details class="panel-block unlock-box" id="wc3-export" hidden>
           <summary>Use it in an emulator</summary>
           <div class="panel-row">
@@ -73,6 +82,13 @@
           <p id="status-text" class="status">Choose an event, then connect.</p>
         </div>
 
+        <div class="progress" id="progress" hidden>
+          <div class="progress-track" id="progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <div class="progress-fill" id="progress-fill"></div>
+          </div>
+          <span class="progress-label" id="progress-label"></span>
+        </div>
+
         <div id="instruction-box" class="instruction-box">
           <span class="instruction-label" id="instruction-label">Next step</span>
           <span id="instruction-text"
@@ -115,6 +131,11 @@
           <p id="result-detail" class="result-detail"></p>
         </div>
       </div>
+
+      <section class="backups" id="backups" hidden aria-labelledby="backups-title">
+        <span class="backups-title" id="backups-title">Backed-up saves</span>
+        <ul class="backups-list" id="backups-list"></ul>
+      </section>
 
       <div class="actions">
         <button type="button" id="connect-btn" class="primary">Connect</button>

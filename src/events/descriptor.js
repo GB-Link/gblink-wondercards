@@ -16,6 +16,7 @@ export function createEventDescriptor(partial = {}) {
     roms: partial.roms ?? null,
     variants: partial.variants ?? null,
     japanese: partial.japanese ?? false,
+    kind: partial.kind ?? null,         // 'backup' or 'restore' for the save, else a card
   };
 }
 

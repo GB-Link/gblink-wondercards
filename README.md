@@ -10,7 +10,8 @@ There are the classic event distributions (the Aurora, Mystic and Eon Tickets, t
 Sea Map, Wish Eggs and more), as Project Wonder's distribution cartridges send them, and
 the GB-Link Team's own cards: speed-up and slow-down, shiny hunting, event Pokémon,
 Pokémon editing tools, and more. The team's cards also come as `.wc3` files for emulators
-and save editors, and the page sends your own `.wc3` files too.
+and save editors, and the page sends your own `.wc3` files too. The same link also backs up
+the game's save to the page as a `.sav` file, and writes a `.sav` back.
 
 ![Thirty GB-Link Team cards in use in FireRed and Emerald, from Fast Forward 2× to the Pocket Casino's roulette](docs/demo.gif)
 
@@ -80,6 +81,17 @@ names its files (`E - …`, `FL - …`), the page asks before sending it to the 
 Otherwise, send it only to the game it was made for. A Japanese `.wc3` (1,252 bytes,
 where the others' have 1,420) goes only to the Japanese games, and the others' only to
 the others.
+
+## Backing up and restoring the save
+
+*Back up the save* and *Restore a save* sit at the end of the event list, and go the same
+way as a card: Mystery Gift, then Wireless Communication. A backup copies the whole
+128 KB save to the page, which offers it as a `.sav` file for PKHeX or an emulator; the
+game shows a message and saves nothing. A restore writes the chosen `.sav` beside the
+cartridge's newest save, checks every sector, then lets the game load it and save. If
+anything is off, or the link drops halfway, the cartridge keeps the save it had. Use a
+`.sav` from the same game and language. Either takes one to four minutes, depending on how
+much of the save is empty.
 
 ## Using the cards in an emulator
 

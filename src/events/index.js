@@ -8,6 +8,7 @@ import { jpajWondercardEvents } from './jpaj-events.js';
 import { jpajFrlgWondercardEvents } from './jpaj-frlg-events.js';
 import { goppierWondercardEvents } from './goppier-events.js';
 import { customWondercardEvents } from './custom-events.js';
+import { saveEvents } from './save-events.js';
 import { createEventDescriptor } from './descriptor.js';
 import {
   buildWonderDistributorGname,
@@ -66,6 +67,10 @@ export const EVENT_GROUPS = [
   {
     label: 'GB-Link Team',
     events: [...customWondercardEvents],
+  },
+  {
+    label: 'Your save',
+    events: [...saveEvents],
   },
 ];
 

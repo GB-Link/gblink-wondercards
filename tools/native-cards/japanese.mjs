@@ -433,6 +433,9 @@ export const JAPANESE = {
     'わざの　ぶつり・とくしゅが\nタイプでなく　わざで　きまる！\nポケモンセンター　２かいの\nはいたついんに　はなしかけてね',
   'Want the physical/special\nsplit?': 'ぶつり・とくしゅを\nわざで　わけますか？',
   'Done! It lasts until you reset.': 'できました！\nリセットするまで　つづきます',
+  'Your save was copied to the\nGB-Link page.': 'セーブを　GB-Linkの\nページに　コピーしました',
+  'The save from the GB-Link page\nis in. Saving it now.': 'GB-Linkの　セーブが\nはいりました　セーブします',
+  'The save could not be written.\nNothing was saved.': 'セーブを　かきこめませんでした\nなにも　セーブしていません',
   'The split is on.\nKeep it on?': 'いまは　わざで　わけています\nこのまま　つづけますか？',
   'Back to the old way!': 'もとに　もどります！',
 

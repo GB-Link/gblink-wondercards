@@ -73,6 +73,7 @@ body {
 .status-panel,
 .log-panel,
 .result,
+.backups,
 footer {
   background: var(--menu);
   border: 3px solid var(--border);
@@ -296,6 +297,45 @@ body[data-dropping] #event-panel {
 .status.ok { color: var(--success); font-weight: 700; }
 .status.err { color: var(--error); font-weight: 700; }
 
+/* Backup and restore progress, as a Game Boy Advance HP bar. */
+.progress {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-top: 0.75rem;
+}
+
+.progress[hidden] { display: none; }
+
+.progress-track {
+  flex: 1;
+  height: 14px;
+  padding: 2px;
+  background: var(--menu-hi);
+  border: 3px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.progress-fill {
+  width: 0;
+  height: 100%;
+  background: var(--success);
+  transition: width 0.5s ease;
+}
+
+.progress-label {
+  min-width: 3.2rem;
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-align: right;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progress-fill { transition: none; }
+}
+
 .instruction-box {
   margin-top: 0.9rem;
   padding: 0.75rem 0.9rem;
@@ -415,6 +455,60 @@ body[data-dropping] #event-panel {
   margin: 0.3rem 0 0;
   font-size: 0.9rem;
   color: var(--ink);
+}
+
+.backups {
+  margin-top: 1.15rem;
+  padding: 0.9rem 1rem;
+}
+
+.backups[hidden] { display: none; }
+
+.backups-title {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.backups-list {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+}
+
+.backups-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  border-top: 2px solid var(--check-light);
+}
+
+.backups-list li:first-child { border-top: none; }
+
+.backup-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.backup-name {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.backup-meta {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.backups-list button {
+  padding: 0.5rem 0.8rem;
+  font-size: 0.78rem;
 }
 
 .decision {
