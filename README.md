@@ -67,7 +67,7 @@ made for the other languages, don't go to them. Their Mystery Gift goes over ジ
 its own distributor beside the others'.
 
 Some cards change how the game plays: the speed cards, Shiny Hunting, Pokémon Follow,
-the roaming Pokémon lure, Travel Anywhere, PC Anywhere, HM Moves Without HMs, the Exp.
+the roaming Pokémon lure, Travel Anywhere, PC Anywhere, Walk Through Walls, HM Moves Without HMs, the Exp.
 Share for the whole party, Reusable TMs, the Gen 4 Physical/Special split and a few more. Their effect
 lasts until the game is turned off or reset; after that, talk to the deliveryman again to
 switch it back on.

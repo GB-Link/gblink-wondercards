@@ -406,6 +406,16 @@ export const JAPANESE = {
   'PC Anywhere is on.\nKeep it on?': 'どこでも　パソコンは　オンです\nこのまま　つづけますか？',
   'Back to the PCs in POKéMON\nCENTERS!': 'パソコンは　ポケモンセンターで！',
 
+  // ---- walk through walls
+  'WALK THROUGH WALLS': 'かべぬけ',
+  'Nothing stands in your way': 'かべも　すりぬけ',
+  'Walls and trees can’t stop you.\nR switches it off and on. See\nthe deliveryman on the 2nd\nfloor of a POKéMON CENTER.':
+    'かべも　きも　すりぬけられる！\nＲで　オン・オフ　できます\nポケモンセンター　２かいの\nはいたついんに　はなしかけてね',
+  'Shall I let you walk through\nwalls, wherever you are?': 'どこでも　かべを\nすりぬけられるように　しますか？',
+  'Done! Press R in the field\nto switch it off and on.': 'できました！　Ｒで\nオン・オフ　できます',
+  'Walk Through Walls is on.\nKeep it on?': 'かべぬけは　オンです\nこのまま　つづけますか？',
+  'Walls are walls again!': 'かべは　もとどおり！',
+
   // ---- HM moves without HMs
   'HM MOVES, NO HMs': 'ひでんわざ　いらず',
   'Your badges are enough': 'バッジだけで　OK',

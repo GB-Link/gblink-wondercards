@@ -196,6 +196,10 @@ const SYMBOLS = {
   FACING_SURFABLE_WATER: ['IsPlayerFacingSurfableFishableWater', 0, 'fn'],
   SURFING_NORTH: ['IsPlayerSurfingNorth', 0, 'fn'],
   METATILE_BEHAVIOR_AT: ['MapGridGetMetatileBehaviorAt', 0, 'fn'],
+  GET_METATILE_ID: ['MapGridGetMetatileIdAt', 0, 'fn'],
+  SET_METATILE_ID: ['MapGridSetMetatileIdAt', 0, 'fn'],
+  INIT_MAP: ['InitMap', 0, 'fn'],
+  DRAW_WHOLE_MAP_VIEW: ['DrawWholeMapView', 0, 'fn'],
   IS_FAST_WATER: { frlg: ['MetatileBehavior_IsFastWater', 0, 'fn'] },
   USE_FLASH: ['FldEff_UseFlash', 0, 'fn'],
   // A New Day: what Emerald does once a day

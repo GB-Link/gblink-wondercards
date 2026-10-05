@@ -935,6 +935,112 @@ ACU8ACdrAgA=`), {
     },
   },
   {
+    id: 'custom-walk-through-walls',
+    label: 'Walk Through Walls (Press R)',
+    description: 'Walk through walls, trees, rocks and counters. People still block the way, and ledges, water and height changes work as usual. It starts on; press R in the field to switch it off and on (a PC’s sounds tell which). Switching it off puts every wall back at once. It stays off in the Union Room. In FireRed and LeafGreen, R no longer opens the Help menu while it’s on (L still does). It lasts until the game is turned off or reset; talk to the deliveryman again to turn it off.',
+    roms: NATIVE_ROMS,
+    payloads: {
+      ...romPayloads('BPEE 1.0', decodeBase64(`OQRcAFEAAAAcANG7xsUAzsLMyc/BwgDRu8bGzf/////////////////////////////I4+jc3eLb
+AOfo1eLY5wDd4gDt4+nmAOvV7f//////////////////0dXg4OcA1eLYAOjm2dnnANfV4rToAOfo
+4+QA7ePprf///////////8wA5+vd6Nfc2ecA3egA49raANXi2ADj4q0AzdnZ///////////////o
+3NkA2Nng3erZ5u3h1eIA4+IA6NzZAKPi2P//////////////////2uDj4+YA49oA1QDKycUbx8nI
+AL2/yM6/zK3//////////////////8G8rsbd4t8AztnV4f//////////////////////////////
+////////////////////////////////////////////////////////////AAAAAAAAuAAAAAhq
+Wh+uAAAIRbsFowAACB+vAAAIRbsFowAACB+8AAAIALsFowAACA8A0HgAAg8BkXhAGA8CgBgEMg8D
+mmAARx9g/wMCAbsBdAAACL2tAAAIZm4UCCENgAAAuwGZAAAII6UOAAM7Ab3jAAAIZm1obAK9FwEA
+CGZuFAghDYABALsBmQAACCOlDgADTgG9PQEACGZtaGwCvVQBAAhmbWhsAr1oAQAIZm1obALN3NXg
+4ADDAODZ6ADt4+kA69Xg3wDo3Obj6dvc/uvV4ODnuADr3Nnm2erZ5gDt4+kA1ebZrP++4+LZqwDK
+5tnn5wDMAN3iAOjc2QDa3dng2P7o4wDn693o19wA3egA49raANXi2ADj4q3/0dXg3wDO3Obj6dvc
+ANHV4ODnAN3nAOPirf7F2dnkAN3oAOPirP/R1eDg5wDV5tkA69Xg4OcA1dvV3eKr/73j4dkA1tXX
+3wDV4u0A6N3h2av/ztzd5wDb3droANjj2efitOgA6+Pm3wDr3ejc/ujc3ecA6tnm593j4gDj2gDo
+3NkA29Xh2a3/AABwtRBLHogAIBiAD00RpEQggAAEOCFYKVD70QxMASAgcGBwC0gBaEsbmwoC0GFg
+aRwBYARLHoBwvQRIACEBcEFwcEfARggCAAQA/AMCYP8DAiAnAAPwtTBMIHgAKDbQL0+4i8AHMtE4
+aC1JiEIu0XhoLEmIQirRMEsA8C74ACgl0QDwK/hgeAAoINApSEB5JCFIQyhJQBgQIUZeAjFFXgI+
+rxwCPTQAIAApACVLAPAU+AIAIAApACNLAPAO+AE0MB2EQvDdATW9QuzdE0xjaADwA/jwvAG8AEcY
+RwC1+I1AChfTEUgAeAAoE9EQSAB4AigP0Q9IwHgAKAvRYHgBIUhAYHARSQAoANEQSQgAC0v/9+P/
+AbwAR8BGYP8DAsAiAAMFXggIXV4ICCwPAAM4DgADkHUDAlBzAwIFgAEI+Y4JCCWCCAjxgggI/PwD
+AgD9AwIvBAACI1V9CAgjNZwICC8DAALARg==`), {
+        'BPEF 1.0': decodeBase64(`aAEBRhAEBRVeCAhtLAQKCY8JCDWCCAgBg0UEAWVKBAFF`),
+        'BPED 1.0': decodeBase64(`aAEBRBAEBSFeCAh5LAQKFY8JCEGCCAgNg0UEAXFKBAFR`),
+        'BPEI 1.0': decodeBase64(`aAEBSRAEBRleCAhxLAQKDY8JCDmCCAgFg0UEAWlKBAFJ`),
+        'BPES 1.0': decodeBase64(`aAEBUxAEBRleCAhxLAQKDY8JCDmCCAgFg0UEAWlKBAFJ`),
+      }),
+      ...romPayloads('BPRE 1.0', decodeBase64(`OQRcAFEAAAAcANG7xsUAzsLMyc/BwgDRu8bGzf/////////////////////////////I4+jc3eLb
+AOfo1eLY5wDd4gDt4+nmAOvV7f//////////////////0dXg4OcA1eLYAOjm2dnnANfV4rToAOfo
+4+QA7ePprf///////////8wA5+vd6Nfc2ecA3egA49raANXi2ADj4q0AzdnZ///////////////o
+3NkA2Nng3erZ5u3h1eIA4+IA6NzZAKPi2P//////////////////2uDj4+YA49oA1QDKycUbx8nI
+AL2/yM6/zK3//////////////////8G8rsbd4t8AztnV4f//////////////////////////////
+////////////////////////////////////////////////////////////AAAAAAAAuAAAAAhq
+Wh+uAAAIUrsFowAACB+vAAAIRbsFowAACB+8AAAIALsFowAACA8A0HgAAg8BkXhAGA8CgBgEMg8D
+mmAARx9g/wMCAbsBdAAACL2tAAAIZm4UCCENgAAAuwGZAAAIIxUPAAM7Ab3jAAAIZm1obAK9FwEA
+CGZuFAghDYABALsBmQAACCMVDwADTgG9PQEACGZtaGwCvVQBAAhmbWhsAr1oAQAIZm1obALN3NXg
+4ADDAODZ6ADt4+kA69Xg3wDo3Obj6dvc/uvV4ODnuADr3Nnm2erZ5gDt4+kA1ebZrP++4+LZqwDK
+5tnn5wDMAN3iAOjc2QDa3dng2P7o4wDn693o19wA3egA49raANXi2ADj4q3/0dXg3wDO3Obj6dvc
+ANHV4ODnAN3nAOPirf7F2dnkAN3oAOPirP/R1eDg5wDV5tkA69Xg4OcA1dvV3eKr/73j4dkA1tXX
+3wDV4u0A6N3h2av/ztzd5wDb3droANjj2efitOgA6+Pm3wDr3ejc/ujc3ecA6tnm593j4gDj2gDo
+3NkA29Xh2a3/AABwtRJLHogAIBiAEU0TpEkggAAEOCFYKVD70Q5MASAgcGBwDUgBaEsbmwoC0GFg
+aRwBYAZLHoBwvQZIACEBcEFwAUgBcHBHwEZ18QMCCAIABAD8AwJg/wMCUDUAA/C1M0wgeAAoPdAy
+T7iLwAc50TFIASEBcDhoMUmIQjLReGgwSYhCLtEsSAB4Aigq0jFLAPAu+AAoJdEA8Cv4YHgAKCDQ
+KkhAeSQhSEMpSUAYECFGXgIxRV4CPq8cAj00ACAAKQAmSwDwFPgCACAAKQAkSwDwDvgBNDAdhELw
+3QE1vULs3RJMY2gA8AP48LwBvABHGEcAtfiNQAoX0xJIAHgAKBPREUgAeAIoD9EQSMB4ACgL0WB4
+ASFIQGBwEkkAKADREkkIAA1L//fj/wG8AEdg/wMC8DAAA3XxAwL6rQMCNWUFCLVlBQicDwADqA4A
+A3hwAwI4bgMC0bARCOWaBghJjgUIpY8FCBD9AwIU/QMCLwQAAiPViQUII4WmBQgvAwACwEY=`), {
+        'BPRE 1.1': decodeBase64(`dAEBASwEBUllBQjJRAQNSbERCPmaBghdjgUIuWEEAelmBAGZ`),
+        'BPGE 1.0': decodeBase64(`XAEBR0QEAak=`),
+        'BPGE 1.1': decodeBase64(`XAEBR3QBAQEsBAVJZQUIyUQEDSGxEQj5mgYIXY4FCLlhBAHpZgQBmQ==`),
+        'BPRF 1.0': decodeBase64(`aAEBRkgDAqA0IAQBQCwEBhVmBQiVZkQEDmmyEQiVmwYICY8FCGWQYQQHtYoFCCNFpw==`),
+        'BPRD 1.0': decodeBase64(`aAEBREgDAqA0IAQBQCwEBVVlBQjVRAQFqbERCNVhBAH1`),
+        'BPRI 1.0': decodeBase64(`aAEBSUgDAqA0IAQBQCwEBUFlBQjBRAQN7bERCMGaBgg1jgUIkWEEAeFmBAFx`),
+        'BPRS 1.0': decodeBase64(`aAEBU0gDAqA0IAQBQCwEBilmBQipZkQEDtWyEQipmwYIHY8FCHmQYQQHyYoFCCNZpw==`),
+        'BPGF 1.0': decodeBase64(`XAEBR2gBAUZIAwKgNCAEAUAsBAYVZgUIlWZEBA5BshEIlZsGCAmPBQhlkGEEB7WKBQgjRac=`),
+        'BPGD 1.0': decodeBase64(`XAEBR2gBAURIAwKgNCAEAUAsBAVVZQUI1UQEBYGxEQjVYQQB9Q==`),
+        'BPGI 1.0': decodeBase64(`XAEBR2gBAUlIAwKgNCAEAUAsBAVBZQUIwUQEDcWxEQjBmgYINY4FCJFhBAHhZgQBcQ==`),
+        'BPGS 1.0': decodeBase64(`XAEBR2gBAVNIAwKgNCAEAUAsBAYpZgUIqWZEBA6tshEIqZsGCB2PBQh5kGEEB8mKBQgjWac=`),
+      }),
+      ...romPayloads('BPEJ 1.0', decodeBase64(`OQRcAFEAAAAcAAZJFwn//////////////////wZJIwANKBcJ//////8GSSMAByMADSgXCScqKav/
+/////8xEAFV+r1VsAEQHHw3/////////n1lzfl5+YK4AowYCGf////////8aAhASAi4WABoVDAYJ
+Exj//////8G8rsbd4t8AztnV4f////////////////////////////////////8AAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAuAAAAAhq
+Wh+uAAAIRbsFowAACB+vAAAISrsFowAACB+8AAAIALsFowAACA8A0HgAAg8BkXhAGA8CgBgEMg8D
+mmAARx9g/wMCAbsBdAAACL2tAAAIZm4UCCENgAAAuwGZAAAII6UOAAPDAL3HAAAIZm1obAK93AAA
+CGZuFAghDYABALsBmQAACCOlDgAD1gC99AAACGZtaGwCvf8AAAhmbWhsAr0MAQAIZm1obAJFCkQj
+AAZJLf4NKBcJJyopJgMWAAwfDQas/0QHHwwQqwDMRP5Vfq9VbABEBx8N/wZJFwkaAFV+RA3+Chkf
+HwASQwkfDQas/wZJGgAjFEUFKKv/HxAAAhJEIwBFA0Cr/woZAAUIKCMZGv4KGQCKrnFEGgASBgQf
+Di7/AABwtRBLHogAIBiAD00RpEQggAAEOCFYKVD70QxMASAgcGBwC0gBaEsbmwoC0GFgaRwBYARL
+HoBwvQRIACEBcEFwcEfARggCAAQA/AMCYP8DAsAnAAPwtTBMIHgAKDbQL0+4i8AHMtE4aC1JiEIu
+0XhoLEmIQirRMEsA8C74ACgl0QDwK/hgeAAoINApSEB5JCFIQyhJQBgQIUZeAjFFXgI+rxwCPTQA
+IAApACVLAPAU+AIAIAApACNLAPAO+AE0MB2EQvDdATW9QuzdE0xjaADwA/jwvAG8AEcYRwC1+I1A
+ChfTEUgAeAAoE9EQSAB4AigP0Q9IwHgAKAvRYHgBIUhAYHARSQAoANEQSQgAC0v/9+P/AbwAR8BG
+YP8DAmAjAANtVwgIxVcICCwPAAM4DgADMHIDAvBvAwLBegEIgYgJCIl7CAhVfAgI/PwDAgD9AwIv
+BAACI7l2CAgjmZUICC8DAALARg==`), {
+      }),
+      ...romPayloads('BPRJ 1.0', decodeBase64(`OQRcAFEAAAAcAAZJFwn//////////////////wZJIwANKBcJ//////8GSSMAByMADSgXCScqKav/
+/////8xEAFV+r1VsAEQHHw3/////////n1lzfl5+YK4AowYCGf////////8aAhASAi4WABoVDAYJ
+Exj//////8G8rsbd4t8AztnV4f////////////////////////////////////8AAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAuAAAAAhq
+Wh+uAAAIUrsFowAACB+vAAAISrsFowAACB+8AAAIALsFowAACA8A0HgAAg8BkXhAGA8CgBgEMg8D
+mmAARx9g/wMCAbsBdAAACL2tAAAIZm4UCCENgAAAuwGZAAAIIxUPAAPDAL3HAAAIZm1obAK93AAA
+CGZuFAghDYABALsBmQAACCMVDwAD1gC99AAACGZtaGwCvf8AAAhmbWhsAr0MAQAIZm1obAJFCkQj
+AAZJLf4NKBcJJyopJgMWAAwfDQas/0QHHwwQqwDMRP5Vfq9VbABEBx8N/wZJFwkaAFV+RA3+Chkf
+HwASQwkfDQas/wZJGgAjFEUFKKv/HxAAAhJEIwBFA0Cr/woZAAUIKCMZGv4KGQCKrnFEGgASBgQf
+Di7/AABwtRJLHogAIBiAEU0TpEkggAAEOCFYKVD70Q5MASAgcGBwDUgBaEsbmwoC0GFgaRwBYAZL
+HoBwvQZIACEBcEFwAUgBcHBHwEbp8AMCCAIABAD8AwJg/wMCkDUAA/C1M0wgeAAoPdAyT7iLwAc5
+0TFIASEBcDhoMUmIQjLReGgwSYhCLtEsSAB4Aigq0jFLAPAu+AAoJdEA8Cv4YHgAKCDQKkhAeSQh
+SEMpSUAYECFGXgIxRV4CPq8cAj00ACAAKQAmSwDwFPgCACAAKQAkSwDwDvgBNDAdhELw3QE1vULs
+3RJMY2gA8AP48LwBvABHGEcAtfiNQAoX0xJIAHgAKBPREUgAeAIoD9EQSMB4ACgL0WB4ASFIQGBw
+EkkAKADREkkIAA1L//fj/wG8AEdg/wMCMDEAA+nwAwJyrQMC9V0FCHVeBQicDwADqA4AA6xvAwJs
+bQMCFbkRCKWTBggFhwUIYYgFCBD9AwIU/QMCLwQAAiOVggUII0GfBQgvAwACwEY=`), {
+        'BPRJ 1.1': decodeBase64(`dAEBAdACAvA0qAMCkDC0AwXRXQUIUcwDDSm5EQhNkwYIxYYFCCHpAwFx7gMBAQ==`),
+        'BPGJ 1.0': decodeBase64(`XAEBR8wDAu24`),
+        'BPGJ 1.1': decodeBase64(`XAEBR3QBAQHQAgLwNKgDApAwtAMF0V0FCFHMAw0BuREITZMGCMWGBQgh6QMBce4DAQE=`),
+      }),
+    },
+  },
+  {
     id: 'custom-pokemon-follow',
     label: 'Pokémon Follow (Walks Behind You)',
     description: 'Your lead party Pokémon walks behind you in the overworld, as in later games, if the game has an overworld sprite of its species. In FireRed and LeafGreen: Pikachu, Clefairy, Jigglypuff, Wigglytuff, Meowth, Psyduck, Slowpoke, Slowbro, Seel, Machop, Machoke, Poliwrath, Voltorb, Pidgey, Pidgeot, Spearow, Fearow, Doduo, Cubone, Chansey, Kangaskhan, Lapras, Kabuto and the Nidoran family (they turn to face where they go). In Emerald: Poochyena, Zigzagoon, Kirlia, Dusclops and Mew (which walk), Wingull, Skitty, Kecleon, Pikachu, Azurill, Azumarill and Sudowoodo. It steps where you stepped, jumps ledges after you and comes along through doors; you and other people walk through it, and push past it where you can’t. Face it and press A to hear its cry. It hides while you bike, surf or dive, and steps away while a menu or battle is on (back with your next step), so a save never keeps it. It lasts until the game is turned off or reset.',
