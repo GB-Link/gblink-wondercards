@@ -23,6 +23,12 @@ const CARD_AT = 4;
 const SCRIPT_DATA_BYTES = 1000;
 const RAM_SCRIPT_MAGIC = 51;
 const NO_MAP = 0xff;
+const ICON_NONE = 0xffff;
+const ICON_SPECIES_MAX = 512;
+
+function plausibleIcon(icon) {
+  return icon === ICON_NONE || (icon > 0 && icon <= ICON_SPECIES_MAX);
+}
 
 // The games' ValidateWonderCard limits.
 const CARD_TYPE_COUNT = 3;
@@ -88,8 +94,12 @@ export function readWc3(bytes) {
   }
   const payload = new Uint8Array(PAYLOAD_SCRIPT_OFFSET + script.length);
   payload.set(card);
-  payload[2] = bytes[layout.icon];
-  payload[3] = bytes[layout.icon + 1];
+  const cardIcon = card[2] | (card[3] << 8);
+  const metaIcon = bytes[layout.icon] | (bytes[layout.icon + 1] << 8);
+  if (!plausibleIcon(cardIcon) && plausibleIcon(metaIcon)) {
+    payload[2] = bytes[layout.icon];
+    payload[3] = bytes[layout.icon + 1];
+  }
   payload.set(script, PAYLOAD_SCRIPT_OFFSET);
   const title = decodeGameText(card.subarray(TITLE_AT, TITLE_AT + layout.titleLength), japanese).replace(/\s+/g, ' ').trim();
   return { payload, title, hasScript: script.length > 0, japanese, iconSpecies: payload[2] | (payload[3] << 8) };
