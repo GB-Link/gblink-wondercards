@@ -88,9 +88,11 @@ export function readWc3(bytes) {
   }
   const payload = new Uint8Array(PAYLOAD_SCRIPT_OFFSET + script.length);
   payload.set(card);
+  payload[2] = bytes[layout.icon];
+  payload[3] = bytes[layout.icon + 1];
   payload.set(script, PAYLOAD_SCRIPT_OFFSET);
   const title = decodeGameText(card.subarray(TITLE_AT, TITLE_AT + layout.titleLength), japanese).replace(/\s+/g, ' ').trim();
-  return { payload, title, hasScript: script.length > 0, japanese };
+  return { payload, title, hasScript: script.length > 0, japanese, iconSpecies: payload[2] | (payload[3] << 8) };
 }
 
 // The game a .wc3 is for, going by its file name as Project Pokémon and this page name them
