@@ -6,6 +6,7 @@ import {
 } from './youpileouf-mystery-event.js';
 import { jpajWondercardEvents } from './jpaj-events.js';
 import { jpajFrlgWondercardEvents } from './jpaj-frlg-events.js';
+import { iskaandismetWondercardEvents } from './iskaandismet-events.js';
 import { goppierWondercardEvents } from './goppier-events.js';
 import { customWondercardEvents } from './custom-events.js';
 import { saveEvents } from './save-events.js';
@@ -22,6 +23,8 @@ export { jpajWondercardEvents } from './jpaj-events.js';
 export { jpajFrlgWondercardEvents } from './jpaj-frlg-events.js';
 export { JPAJ_WONDERCARDS } from './jpaj-wondercards.js';
 export { JPAJ_FRLG_WONDERCARDS } from './jpaj-frlg-wondercards.js';
+export { iskaandismetWondercardEvents } from './iskaandismet-events.js';
+export { ISKAANDISMET_WONDERCARDS } from './iskaandismet-wondercards.js';
 export { goppierWondercardEvents } from './goppier-events.js';
 export { GOPPIER_WONDERCARDS } from './goppier-wondercards.js';
 export { customWondercardEvents } from './custom-events.js';
@@ -54,6 +57,7 @@ export const EVENT_GROUPS = [
       youpileoufMysteryEventFra,
       youpileoufMysteryEventGer,
       ...jpajWondercardEvents,
+      ...iskaandismetWondercardEvents,
     ],
   },
   {
