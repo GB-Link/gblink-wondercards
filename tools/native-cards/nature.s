@@ -3,8 +3,9 @@
 @ the nature that raises stat VAR_0x8005 and lowers stat VAR_RESULT (both 0-4,
 @ from the menu; natures go 5 to a raised stat in that order), keeping its
 @ gender, ability and shininess (repersonalize: its IVs come with the new
-@ personality, and its stats are recalculated), and puts the nature's name
-@ in gStringVar2. VAR_RESULT = 1, or 0 when no personality turned up.
+@ personality, and its stats are recalculated), and puts the name of the
+@ nature it then has in gStringVar2: its old one if no such personality
+@ turned up.
 @
 @ Parameters (--defsym): PARTY, SPECIAL_VAR_8004, SPECIAL_VAR_RESULT,
 @ STRING_VAR_2, STAT_NAMES, NATURE_NAMES, STRING_COPY and
@@ -16,9 +17,9 @@
     .align 2
 
     .set MONS_ORDER, 1
-    .set REP_KEEP_ORDER, 1              @ the low byte stays
     .set MONS_CHOSEN, 1
-    .equ STAT_MENU_WIDTH, 8             @ tiles, for SP. ATK and DEFENSE
+    .set MENU_WIDTH_GIVEN, 1
+    .equ STAT_MENU_WIDTH, 8             @ tiles, for SP. ATK and DEFENSE, and the Japanese names
 
 stat_menu:
     ldr r0, p_stat_names
@@ -41,17 +42,16 @@ change_nature:
     ldrb r1, [r4, #MON_PERSONALITY]     @ the same low byte
     movs r2, r5
     bl repersonalize
-    ldr r1, p_var_result
-    strh r0, [r1]
-    cmp r0, #0
-    beq 9f
+    ldr r0, [r4, #MON_PERSONALITY]
+    movs r1, #25
+    bl umod                             @ the nature it has now
     ldr r1, p_nature_names
-    lsls r5, r5, #2
-    ldr r1, [r1, r5]
+    lsls r0, r0, #2
+    ldr r1, [r1, r0]
     ldr r0, p_string_var_2
     ldr r3, p_string_copy
     bl call_r3
-9:  pop {r4, r5, pc}
+    pop {r4, r5, pc}
 
 call_r3:
     bx r3

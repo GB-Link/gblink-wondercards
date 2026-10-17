@@ -9,24 +9,25 @@
 @ takes high halves that keep it shiny, and an Unown only those, and second
 @ bytes, that keep its letter.
 @
-@ With REP_KEEP_ORDER set (a card that keeps the low byte's low 3 bits), the
-@ PID also keeps its remainder by 24, the order of the secure data, which then
-@ only needs XORing with the change of key; then MONS_ORDER's table can go.
 @ With PERSONALITY_SET_ONLY set, the include holds `set_personality` instead,
 @ which gives the Pokémon at r0 personality r1 the same way, IVs as they were.
 @
-@ Parameters (--defsym): GET_MON_DATA, SET_MON_DATA, CALCULATE_STATS. Needs
-@ mons.inc with MONS_ORDER.
+@ The secure data moves to the new personality's order through the game's own
+@ GetSubstruct, its key changing by old ^ new.
+@
+@ Parameters (--defsym): GET_SUBSTRUCT, and for `repersonalize` GET_MON_DATA,
+@ SET_MON_DATA and CALCULATE_STATS. `repersonalize` needs mons.inc with
+@ MONS_ORDER.
 
-    .equ REP_NATURE, 48                 @ frame: 48 bytes of reordered data, then
+    .equ REP_NATURE, 48                 @ frame: a copy of the secure data, then
+    .equ REP_FROM, 48                   @ once the search is done: a substructure's old place
     .equ REP_LOW, 52
     .equ REP_TRAINER, 56                @ the trainer id's halves XORed, or -1 if not shiny
     .equ REP_CANDIDATE, 60
     .equ REP_IVS, 64
     .equ REP_OLD, 68
     .equ REP_LETTER, 76                 @ the PID bits an Unown's letter is made of
-    .equ REP_ORDER, 80                  @ the old personality % 24
-    .equ REP_FRAME, 84
+    .equ REP_FRAME, 80
     .equ LCG_MUL, 0x41C64E6D
     .equ LCG_ADD, 0x6073
     .equ MON_DATA_HP_IV, 39             @ then ATTACK, DEFENSE, SPEED, SP. ATK, SP. DEF
@@ -49,12 +50,6 @@ repersonalize:
     str r2, [sp, #REP_NATURE]
     ldr r6, [r5, #MON_PERSONALITY]
     str r6, [sp, #REP_OLD]
-.ifdef REP_KEEP_ORDER
-    movs r0, r6
-    movs r1, #24
-    bl umod
-    str r0, [sp, #REP_ORDER]
-.endif
     ldrh r0, [r5, #MON_OT_ID]
     ldrh r1, [r5, #MON_OT_ID + 2]
     eors r0, r1
@@ -112,14 +107,6 @@ repersonalize:
     ldr r1, [sp, #REP_NATURE]
     cmp r0, r1
     bne 4b
-.ifdef REP_KEEP_ORDER
-    ldr r0, [sp, #REP_CANDIDATE]
-    movs r1, #24
-    bl umod
-    ldr r1, [sp, #REP_ORDER]
-    cmp r0, r1
-    bne 4b                              @ its data would need reordering
-.endif
     ldr r1, rep_lcg_mul
     ldr r2, rep_lcg_add
     movs r0, r4
@@ -146,59 +133,39 @@ repersonalize:
     b 9f
 7:
 .endif
-.ifdef REP_KEEP_ORDER
-    movs r1, r6
-    eors r1, r7                         @ the key changes by old ^ new personality
+@ Each substructure, found at its old place in a copy of the secure data, goes
+@ to its new place with the new key.
     movs r0, r5
     adds r0, #MON_SECURE
+    mov r1, sp
     movs r2, #44
 1:  ldr r3, [r0, r2]
-    eors r3, r1
-    str r3, [r0, r2]
+    str r3, [r1, r2]
     subs r2, #4
     bpl 1b
-.else
-    movs r0, r6
-    bl rep_order
-    str r0, [sp, #REP_NATURE]           @ from here: the old order
-    movs r0, r7
-    bl rep_order
-    str r0, [sp, #REP_LOW]              @ and the new one
-    movs r4, #0                         @ 2 × the substructure number
-3:  ldr r0, [sp, #REP_NATURE]
-    lsrs r0, r4
-    movs r3, #3
-    ands r0, r3
-    movs r2, #SUBSTRUCT_SIZE
-    muls r0, r2
-    adds r0, #MON_SECURE
-    adds r0, r5, r0                     @ from its old place
-    ldr r1, [sp, #REP_LOW]
-    lsrs r1, r4
-    ands r1, r3
-    muls r1, r2
-    add r1, sp                          @ to its new place in the frame
-    movs r2, #3
-4:  ldr r3, [r0]
-    eors r3, r6                         @ the key changes by old ^ new personality
-    eors r3, r7
-    str r3, [r1]
-    adds r0, #4
-    adds r1, #4
-    subs r2, #1
-    bne 4b
-    adds r4, #2
-    cmp r4, #8
-    bne 3b
-    mov r1, sp
+    movs r4, #MISC
+2:  mov r0, sp
+    subs r0, #MON_SECURE                @ a box Pokémon whose secure data is the copy
+    movs r1, r6
+    movs r2, r4
+    ldr r3, rep_get_substruct
+    bl rep_call
+    str r0, [sp, #REP_FROM]
     movs r0, r5
-    adds r0, #MON_SECURE
-    movs r2, #44
-5:  ldr r3, [r1, r2]
+    movs r1, r7
+    movs r2, r4
+    ldr r3, rep_get_substruct
+    bl rep_call
+    ldr r1, [sp, #REP_FROM]
+    movs r2, #SUBSTRUCT_SIZE - 4
+3:  ldr r3, [r1, r2]
+    eors r3, r6
+    eors r3, r7
     str r3, [r0, r2]
     subs r2, #4
-    bpl 5b
-.endif
+    bpl 3b
+    subs r4, #1
+    bpl 2b
     str r7, [r5, #MON_PERSONALITY]
 .ifndef PERSONALITY_SET_ONLY
     movs r4, #0                         @ IV number r4, 5 bits each
@@ -225,22 +192,12 @@ repersonalize:
 9:  add sp, #REP_FRAME
     pop {r4, r5, r6, r7, pc}
 
-.ifndef REP_KEEP_ORDER
-@ r0 = the substructure order for personality r0.
-rep_order:
-    push {lr}
-    movs r1, #24
-    bl umod
-    adr r1, substruct_order
-    ldrb r0, [r1, r0]
-    pop {pc}
-.endif
-
-.ifndef PERSONALITY_SET_ONLY
 rep_call:
     bx r3
 
     .align 2
+rep_get_substruct: .word GET_SUBSTRUCT
+.ifndef PERSONALITY_SET_ONLY
 rep_get_mon_data: .word GET_MON_DATA
 rep_calc_stats:   .word CALCULATE_STATS
 rep_set_mon_data: .word SET_MON_DATA

@@ -130,6 +130,7 @@ const SYMBOLS = {
   OBJECT_EVENT_TURN: ['ObjectEventTurn', 0, 'fn'],
   GET_MON_DATA: ['GetMonData3', 0, 'fn'],
   SET_MON_DATA: ['SetMonData', 0, 'fn'],
+  GET_SUBSTRUCT: ['GetSubstruct', 0, 'fn'],
   GET_NATURE: ['GetNature', 0, 'fn'],
   GET_SPECIES_NAME: ['GetSpeciesName', 0, 'fn'],
   DO_NAMING_SCREEN: ['DoNamingScreen', 0, 'fn'],

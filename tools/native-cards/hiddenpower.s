@@ -27,7 +27,6 @@
 
     .set MONS_CHOSEN, 1
 .if PICK == 0
-    .set MONS_ORDER, 1
     .set PERSONALITY_SET_ONLY, 1
 .endif
     .equ MON_DATA_HP_IV, 39

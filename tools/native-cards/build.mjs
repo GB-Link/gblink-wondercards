@@ -162,7 +162,7 @@ const romCheck = (game, wrong) => [
   compareAddrToValue(ROM_REVISION, game.revision), vgotoIf(NE, wrong),
 ];
 
-const WRONG_ROM_MESSAGE = 'This gift doesn’t work with\nthis version of the game.';
+const WRONG_ROM_MESSAGE = 'This gift isn’t for\nthis game.';
 
 // ---- script commands (same opcodes in both games)
 const EQ = 1;

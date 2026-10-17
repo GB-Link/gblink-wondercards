@@ -4,7 +4,7 @@
 @ the decrypted secure halfwords.
 @
 @ Set MONS_SET_BYTE before including to get `set_mon_byte`, MONS_ORDER for
-@ `umod` and `substruct_order` alone, and MONS_CHOSEN for `chosen_mon`.
+@ `umod` alone, and MONS_CHOSEN for `chosen_mon`.
 
     .equ MON_SIZE, 100
     .equ PARTY_SIZE, 6
@@ -137,8 +137,7 @@ set_mon_byte:
     bx r0
 .endif
 
-.ifndef REP_KEEP_ORDER
-.ifdef MONS_ORDER
+.ifdef MONS_SET_BYTE
 @ Substructure positions by personality % 24, two bits each with growth lowest
 @ (GetSubstruct's SUBSTRUCT_CASE).
     .align 2
@@ -146,5 +145,4 @@ substruct_order:
     .byte 0xE4, 0xB4, 0xD8, 0x9C, 0x78, 0x6C, 0xE1, 0xB1, 0xD2, 0x93, 0x72, 0x63
     .byte 0xC9, 0x8D, 0xC6, 0x87, 0x4E, 0x4B, 0x39, 0x2D, 0x36, 0x27, 0x1E, 0x1B
     .align 2
-.endif
 .endif

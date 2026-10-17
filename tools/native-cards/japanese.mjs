@@ -8,7 +8,7 @@ export const JAPANESE = {
   // ---- every card
   'GB-Link Team': 'GB-Link Team',
   '': '',
-  'This gift doesn’t work with\nthis version of the game.': 'この　おくりものは\nこの　ゲームでは　つかえません',
+  'This gift isn’t for\nthis game.': 'この　おくりものは\nこの　ゲームでは　つかえません',
   'Come back any time!': 'また　いつでも　どうぞ！',
   'Stay healthy out there!': 'からだに　きを　つけてね！',
   'Take good care of it!': 'たいせつに　そだててね！',

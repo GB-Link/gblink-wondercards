@@ -5,7 +5,8 @@
 @ DrawMultichoiceMenu (Emerald) and DrawVerticalMultichoiceMenu
 @ (FireRed/LeafGreen) build theirs, with the item list at MENU_LIST. The
 @ Japanese games' fonts are fixed-width, and the box is as wide as their own
-@ make it for the longest item; r2 goes unused there.
+@ make it for the longest item; r2 goes unused there, unless MENU_WIDTH_GIVEN
+@ is set (r2 fits the items in every language).
 @
 @ Parameters (--defsym): EMERALD (1 on Emerald), JAPANESE (1 on the Japanese
 @ games), SPECIAL_VAR_RESULT, MENU_LIST (room for 8 MenuActions),
@@ -43,10 +44,12 @@ menu:
     cmp r3, r5
     bne 1b
 .if JAPANESE
+.ifndef MENU_WIDTH_GIVEN
     ldr r0, menu_list
     movs r1, r5
     bl menu_width
     movs r7, r0
+.endif
 .endif
     ldr r6, menu_list
     movs r0, #MENU_RIGHT
@@ -154,6 +157,7 @@ menu_call:
     bx r4
 
 .if JAPANESE
+.ifndef MENU_WIDTH_GIVEN
 @ The width in tiles of a box for the r1 MenuActions at r0: Emerald's is a
 @ tile a character and one for the cursor, FireRed/LeafGreen's 11 pixels a
 @ character and 11 for the cursor.
@@ -182,6 +186,7 @@ menu_width:
 .endif
     pop {r4, r5}
     bx lr
+.endif
 .endif
 
 .ifdef MENU_LISTS
