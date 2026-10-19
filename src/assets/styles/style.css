@@ -357,6 +357,16 @@ body[data-dropping] #event-panel {
   line-height: 1.5;
 }
 
+#description-text a {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+
+#description-text a:hover { color: var(--accent-hover); }
+
 .unlock-box { display: block; }
 
 .unlock-box[hidden] { display: none; }

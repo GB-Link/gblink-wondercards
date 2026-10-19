@@ -3,6 +3,8 @@ export function createEventDescriptor(partial = {}) {
     id: partial.id ?? 'custom',
     label: partial.label ?? 'Custom event',
     description: partial.description ?? '',
+    note: partial.note ?? null, // optional second paragraph
+    credit: partial.credit ?? null, // optional { href, text } rendered as a new-tab link
     serialNo: partial.serialNo ?? 0,
     mbootFlag: partial.mbootFlag ?? 0,
     maxPlayers: partial.maxPlayers ?? 0,

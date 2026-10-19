@@ -492,20 +492,44 @@ async function openSav(file) {
   distribution.setEvent(currentEvent);
 }
 
+function renderDescription(event) {
+  descriptionText.replaceChildren();
+  if (event.description) {
+    descriptionText.append(document.createTextNode(event.description));
+  }
+  if (event.note || (event.credit?.href && event.credit?.text)) {
+    descriptionText.append(document.createElement('br'));
+    if (event.note) {
+      descriptionText.append(document.createTextNode(event.note));
+    }
+    if (event.credit?.href && event.credit?.text) {
+      if (event.note) descriptionText.append(document.createTextNode(' '));
+      const a = document.createElement('a');
+      a.href = event.credit.href;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.textContent = event.credit.text;
+      descriptionText.append(a);
+      descriptionText.append(document.createTextNode('.'));
+    }
+  }
+}
+
 function applyEventSelection(id) {
   const preset = (fileEvent && id === fileEvent.id ? fileEvent : findPreset(id)) ?? EVENT_PRESETS[0];
   if (!preset) return null;
   eventSelect.value = preset.id;
   currentEvent = withSave(preset);
   savBox.hidden = preset.kind !== 'restore';
-  descriptionText.textContent = preset.description;
+  renderDescription(preset);
   renderExport(preset);
   return preset;
 }
 
-// The games a GB-Link Team card can be downloaded for, as a .wc3 for emulators and save editors.
+// The games a GB-Link Team card (including Daily Red) can be downloaded for, as a .wc3.
 function renderExport(event) {
-  const games = customWondercardEvents.includes(event)
+  const teamCard = event?.id === 'daily-red' || customWondercardEvents.includes(event);
+  const games = teamCard && event?.variants && event?.roms
     ? WC3_GAMES.filter((game) => payloadForGame(event.variants, event.roms, game))
     : [];
   wc3Export.hidden = !games.length;

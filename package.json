@@ -7,8 +7,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "build": "node tools/dailyred/bake-wordle.mjs || echo \"Wordle bake failed; using committed answers\"; vite build",
+    "preview": "vite preview",
+    "dailyred:bake": "node tools/dailyred/bake-templates.mjs",
+    "dailyred:wordle": "node tools/dailyred/bake-wordle.mjs"
   },
   "devDependencies": {
     "@vitejs/plugin-basic-ssl": "^2.0.0",
