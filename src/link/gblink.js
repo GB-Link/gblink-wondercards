@@ -2,7 +2,9 @@
 // channels: commands out, link status in, data both ways. Command replies
 // come back on the data channel, led by the command byte.
 
-const VENDOR_ID = 0x2fe3;
+// GB-Link firmware before 3.0.0, then 3.0.0 and newer
+const USB_FILTERS = [{ vendorId: 0x2fe3 }, { vendorId: 0x1209, productId: 0xb011 }];
+const SERIAL_FILTERS = [{ usbVendorId: 0x2fe3 }, { usbVendorId: 0x1209, usbProductId: 0xb011 }];
 const PACKET_BYTES = 64;
 const SERIAL_SYNC = [0x47, 0x42];
 const CHANNEL = { COMMAND: 0, DATA: 1, STATUS: 2 };
@@ -279,7 +281,7 @@ export async function openGbLink() {
         try { await device.close(); } catch { }
       }
     }
-    const device = await navigator.usb.requestDevice({ filters: [{ vendorId: VENDOR_ID }] });
+    const device = await navigator.usb.requestDevice({ filters: USB_FILTERS });
     await device.open();
     if (!device.configuration) await device.selectConfiguration(1);
     const endpoints = findEndpoints(device);
@@ -288,7 +290,7 @@ export async function openGbLink() {
     return new GbLinkUsb(device, endpoints);
   }
   if (navigator.serial) {
-    const port = await navigator.serial.requestPort({ filters: [{ usbVendorId: VENDOR_ID }] });
+    const port = await navigator.serial.requestPort({ filters: SERIAL_FILTERS });
     await port.open({ baudRate: 115200 });
     const link = new GbLinkSerial(port, port.readable.getReader(), port.writable.getWriter());
     port.addEventListener?.('disconnect', () => link.lost());

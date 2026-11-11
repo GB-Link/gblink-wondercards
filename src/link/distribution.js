@@ -6,7 +6,7 @@ import { Rfu1Reader } from './rfu1.js';
 import { startTicker } from './ticker.js';
 import { WonderSession } from './wonder.js';
 
-export const MIN_FIRMWARE = [2, 2, 6];
+export const MIN_FIRMWARE = [3, 0, 0];
 
 const MODE_WIRELESS_ADAPTER = 0x07;
 const LINK_PACKET_BYTES = 64;

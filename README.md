@@ -19,7 +19,7 @@ the game's save to the page as a `.sav` file, and writes a `.sav` back.
 ## What you need
 
 - A Game Boy Advance with Pokémon Emerald, FireRed or LeafGreen.
-- A GB-Link adapter with firmware 2.2.6 or newer. Update it in the
+- A GB-Link adapter with firmware 3.0.0 or newer. Update it in the
   [GB-Link launcher](https://launcher.gblink.io).
 - A **Game Boy Color** link cable between the Game Boy Advance and the GB-Link. Game Boy
   Advance link cables are missing pins this mode needs.
